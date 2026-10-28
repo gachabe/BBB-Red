@@ -1,0 +1,37 @@
+mode: demo
+seed: 42
+dataset: "Walchli et al., Nature 632, 603-613 (2024) - endotelio de glioma (GBM/LGG)"
+
+data:
+  path: 'C:\Users\Gabi\Downloads\GSE256493_Combined_Glioma_Endothelial__Normalized_FullGenes_Scanpy.h5ad'
+  cache: true                      # copia rápida en data/processed (la primera carga es más lenta)
+  cache_dir: data/processed
+  expected_shape: [67372, 26666]   # (células, genes) del objeto de Walchli; si no coincide, es otro fichero
+  patients_per_class: 3            # null = todos los pacientes
+  max_cells_per_patient: 150        # null = todas las células
+
+tasks: [glioma_type]
+
+rom:
+  hvg: 200                         # genes más variables (elegidos solo con entrenamiento)
+  components: [2, 5]
+  include_all_genes: true          # referencia con los 26.666 genes
+  scale_clip: 10.0                 # recorta los valores escalados a +-10
+  regress_out: [nCount_RNA, nFeature_RNA]   # quita el efecto de la profundidad (log1p), ajustado solo con entrenamiento; null = no
+
+ml:
+  max_train_cells_per_patient: 100    # tope por paciente en entrenamiento (se evalúa con todas las células)
+  rf_trees: 50
+  control: true                    # etiquetas permutadas entre pacientes (debe dar el azar)
+  by_cluster: true                 # acierto dentro de cada ECclusters
+
+models:
+  - logistic_regression
+  - random_forest
+
+permutation:                       # experiments.06_permutation
+  n: 20                        # "all" = todas las asignaciones posibles de pacientes (exacto)
+  representations: [PCA-2, PCA-5]
+  model: logistic_regression
+  chunk: 5
+  n_jobs: -1

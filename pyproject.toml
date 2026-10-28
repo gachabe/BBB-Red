@@ -1,0 +1,13 @@
+[project]
+name = "bbb"
+version = "0.1.0"
+description = "PCA (ROM) + ML sobre células endoteliales de glioma (Walchli 2024): GBM vs LGG"
+requires-python = ">=3.10"
+dependencies = ["numpy", "pandas", "scipy", "scikit-learn", "anndata", "h5py", "matplotlib", "pyyaml", "tqdm"]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
