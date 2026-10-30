@@ -295,7 +295,7 @@ Remuestreo de pacientes con reemplazo (5.000 veces, manteniendo el nº por clase
 
 - En Wälchli, 6 de 14 filas tienen el límite inferior por encima de 0,5 (sin corregir por probar 14 filas); en Xie completo, 1 de 14 (PCA-10 con regresión logística, 0,508).
 - Las diferencias entre representaciones son mucho menores que la anchura de los intervalos. No se puede afirmar que una sea mejor.
-- No se calcularon aún intervalos para el análisis `core` (4.7) ni para el exploratorio (4.10).
+- `13_bootstrap` calcula ahora también los intervalos de `core` (4.7), de la alineación y de dentro de Xie (4.10); **pendiente de ejecutar** (segundos) y de volcar aquí sus resultados.
 
 ### 4.10 Dos análisis exploratorios (declarados como tales; se hicieron tras ver los resultados anteriores)
 
@@ -355,11 +355,11 @@ Remuestreo de pacientes con reemplazo (5.000 veces, manteniendo el nº por clase
 Hecho desde la versión anterior: análisis `core` (4.7), revisión de C (4.4), significado de PC1/PC2 (4.8), bootstrap (4.9), alineación de medias y dentro de Xie (4.10).
 
 1. **Separar el efecto de P036 del de las muestras `N`:** el detalle por paciente (4.7) ya muestra que quitar `N` mejora a P045 y P046; falta ejecutar solo muestras `T` incluyendo P036, si tiene muestra `T`.
-2. **Bootstrap para el análisis `core`** y para la alineación (4.10 a).
+2. **Ejecutar el bootstrap ampliado** (`experiments.13_bootstrap`, sin argumentos: Wälchli, Xie, `core`, alineado y dentro de Xie) y añadir los intervalos a 4.7, 4.9 y 4.10. Código listo.
 3. **Metadatos clínicos de LGG1** (subtipo, localización): único fallo interno sin explicación; la edad (69) es una pista (4.8).
 4. **Probar si la edad explica PC2:** p. ej. entrenar controlando por edad o comparar con un modelo solo de edad (con 14 pacientes tiene poca potencia).
 5. **Si se vuelve a alinear entre estudios:** hacerlo de forma no transductiva (calcular el desplazamiento sin usar el estudio de prueba) o con un método estándar (ComBat/Harmony).
-6. **Otro conjunto independiente** y, si es posible, anotación celular publicada de Xie para validar la selección de endotelio. Es lo único que puede desempatar entre artefacto técnico y señal real; hay que conseguirlo fuera de este repositorio.
+6. **Otro conjunto independiente** y, si es posible, anotación celular publicada de Xie para validar la selección de endotelio. Sería lo único que desempataría entre artefacto técnico y señal real; hoy no hay ninguno a mano y es posible que no exista.
 
 ---
 
@@ -395,7 +395,7 @@ Configuraciones: `demo` (comprueba que todo funciona; no sacar conclusiones), `m
 
 # qué representan PC1/PC2, bootstrap, y los dos exploratorios (4.8-4.10)
 .\.venv\Scripts\python.exe -m experiments.12_pc_meaning --config configs/full.yaml --bundle models/full_tuned/bundle.joblib --out results/pc_meaning
-.\.venv\Scripts\python.exe -m experiments.13_bootstrap --out results/bootstrap
+.\.venv\Scripts\python.exe -m experiments.13_bootstrap --out results/bootstrap   # Wälchli, Xie, core, alineado y dentro de Xie (omite los que no existan)
 .\.venv\Scripts\python.exe -m experiments.15_align_external --config configs/full.yaml --bundle models/full_tuned/bundle.joblib --out results/external_xie_aligned
 .\.venv\Scripts\python.exe -m experiments.14_within_xie --config configs/full.yaml --out results/within_xie
 

@@ -38,7 +38,7 @@ def test_bootstrap_ci_contains_point_and_is_wider_with_fewer_patients(tmp_path):
     assert cb[1] <= cb[0] <= cb[2] + 1e-9 and cs[1] <= cs[0] <= cs[2] + 1e-9
     big.to_csv(tmp_path / "w.csv", index=False)
     small.drop(columns="variant").to_csv(tmp_path / "x.csv", index=False)
-    mod.main(tmp_path / "w.csv", tmp_path / "x.csv", tmp_path / "o", B=200)
+    mod.main({"Walchli": tmp_path / "w.csv", "Xie core": tmp_path / "x.csv", "No existe": tmp_path / "nada.csv"}, tmp_path / "o", B=200)
     assert (tmp_path / "o" / "descriptions" / "13_bootstrap_ci.txt").exists()
     assert (tmp_path / "o" / "bootstrap_ci.csv").exists()
 
