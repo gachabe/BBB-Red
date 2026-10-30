@@ -17,6 +17,7 @@ from src.evaluation import (
     fig_confusions,
     fig_pca_variance,
     fig_per_patient,
+    fig_permutation,
 )
 
 
@@ -45,7 +46,13 @@ def main(cfg: dict) -> None:
             j = json.loads(cm_path.read_text(encoding="utf-8"))
             cms = {tuple(k.split("|")): np.array(c) for k, c in j["real"].items()}
             fig_confusions(cms, j["classes"], t, out)
-    print(f"Figuras regeneradas en {out}/")
+    perm, res = out / "permutation" / "perm_stats.csv", out / "permutation_results_glioma_type.csv"
+    if perm.exists() and res.exists():
+        st = pd.read_csv(perm).drop_duplicates(["id", "representation"])
+        null_max = st.pivot(index="id", columns="representation", values="macro_f1").max(axis=1).to_numpy()
+        pr = pd.read_csv(res)
+        fig_permutation(null_max, dict(zip(pr["representation"], pr["real_macro_f1"])), "glioma_type", out)
+    print(f"Figuras y descripciones regeneradas en {out}/")
 
 
 if __name__ == "__main__":

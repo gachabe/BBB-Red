@@ -10,3 +10,7 @@ results/*/
 !results/.gitkeep
 models/*
 !models/.gitkeep
+data/xie/*
+
+data/xie_core/*
+data/xie_min1500/*

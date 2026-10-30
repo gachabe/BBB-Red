@@ -109,3 +109,13 @@ def test_regress_out_needs_covariates(dataset_and_folds, cfg):
     ds, folds = dataset_and_folds
     with pytest.raises(AssertionError):
         fit_representations(ds.X[folds[0].train_idx], cfg["rom"], None)
+
+
+def test_every_figure_has_a_description(cfg):
+    out = Path(cfg["results_dir"])
+    importlib.import_module("experiments.replot").main(cfg)
+    pngs = sorted(out.glob("*.png"))
+    assert pngs
+    for png in pngs:
+        txt = out / "descriptions" / (png.stem + ".txt")
+        assert txt.exists() and len(txt.read_text(encoding="utf-8")) > 80, f"falta descripción de {png.name}"

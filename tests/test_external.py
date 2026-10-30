@@ -46,3 +46,14 @@ def test_normalization_detection():
     assert check_normalization(counts)["kind"] == "counts"
     assert check_normalization(normalize_counts(counts))["kind"] == "log_norm"
     assert check_normalization(sp.csr_matrix(np.array([[0.5, 0.2], [0.1, 0.9]], dtype=np.float32)))["kind"] == "other"
+
+
+def test_chunked_prediction_equals_unchunked(cfg, dataset_and_folds):
+    ds, _ = dataset_and_folds
+    b = train_bundle(ds, cfg)
+    from src.final_model import apply_all
+    from src.rom import covariates
+    C = covariates(ds.meta, b["regress_out"])
+    a, _ = apply_all(b, ds.X, ds.meta, C, "Patient", "glioma_type", chunk=37)
+    c, _ = apply_all(b, ds.X, ds.meta, C, "Patient", "glioma_type", chunk=10**9)
+    assert np.allclose(a["macro_f1"], c["macro_f1"], atol=1e-9)

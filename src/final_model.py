@@ -127,16 +127,37 @@ def _labels(bundle, obs, patient_col, label_col, label_map=None):
     return y, pats, w
 
 
-def apply_all(bundle, X, obs, C, patient_col, label_col, label_map=None):
+def shifted(Xc, gene_idx, shift):
+    """Resta 'shift' (por gen) solo en los genes que usa la representación; el resto queda a cero (no se usa)."""
+    Xd = Xc[:, gene_idx].toarray() - shift[gene_idx].astype(np.float32)
+    n = Xd.shape[0]
+    return sp.csr_matrix((Xd.ravel(), (np.repeat(np.arange(n), len(gene_idx)), np.tile(gene_idx, n))), shape=(n, Xc.shape[1]))
+
+
+def _predict_chunked(rep, models_for_rep: dict, X, C, chunk: int, shift=None) -> dict:
+    """Predice por bloques de filas: con 'All genes' y regresión de profundidad la matriz es densa y no cabe en memoria."""
+    out = {k: [] for k in models_for_rep}
+    for s in range(0, X.shape[0], chunk):
+        Xc = X[s: s + chunk]
+        if shift is not None:
+            Xc = shifted(Xc, rep.gene_idx, shift)
+        Z = rep.transform(Xc, None if C is None else C[s: s + chunk])
+        for k, m in models_for_rep.items():
+            out[k].append(m.predict(Z))
+    return {k: np.concatenate(v) for k, v in out.items()}
+
+
+def apply_all(bundle, X, obs, C, patient_col, label_col, label_map=None, chunk: int = 5000, shift=None):
+    """shift (opcional, exploratorio): resta por gen para alinear las medias del estudio externo; omite 'All genes'."""
     y, pats, w = _labels(bundle, obs, patient_col, label_col, label_map)
     classes = bundle["classes"]
     rows, per_pat = [], []
     for rep in bundle["reps"]:
-        Z = rep.transform(X, C)
-        for (rn, mn), model in bundle["models"].items():
-            if rn != rep.name:
-                continue
-            pred = model.predict(Z)
+        if shift is not None and rep.kind == "all":
+            continue
+        mine = {k: m for k, m in bundle["models"].items() if k[0] == rep.name}
+        preds = _predict_chunked(rep, mine, X, C, chunk, shift)
+        for (rn, mn), pred in preds.items():
             m = classification_metrics(y, pred, classes, w)
             pp = per_patient_table(y, pred, pats, classes)
             m.update(representation=rn, model=mn, n_features=rep.n_features,

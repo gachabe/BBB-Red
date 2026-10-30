@@ -105,6 +105,17 @@ def save_tables(results: pd.DataFrame, task: str, outdir: Path) -> None:
     (outdir / f"summary_{task}.md").write_text("\n\n".join(parts) + "\n", encoding="utf-8")
 
 
+def _describe(outdir, png_name: str, lines) -> None:
+    """Escribe results/<modo>/descriptions/<nombre_de_la_figura>.txt con lo que expresa la figura y sus cifras clave."""
+    d = Path(outdir) / "descriptions"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / (Path(png_name).stem + ".txt")).write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def describe_figure(outdir, png_name: str, lines) -> None:
+    _describe(outdir, png_name, lines)
+
+
 # --------------------------------------------------------------------------- figuras
 
 
@@ -143,6 +154,18 @@ def fig_cohort(cohort: pd.DataFrame, outdir: Path) -> None:
     ax[1].tick_params(axis="x", labelrotation=60)
     ax[1].legend(fontsize=7, loc="center left", bbox_to_anchor=(1.01, 0.5), title="ECclusters")
     fig.tight_layout()
+    lines = ["01_cohort.png",
+             "Qué expresa: la cohorte. Izquierda: células endoteliales por paciente (escala logarítmica), coloreadas por tipo de glioma. "
+             "Derecha: composición de cada paciente por tipo de célula endotelial (ECclusters), como fracción de sus células.", ""]
+    for c in classes:
+        g = d[d["glioma_type"] == c]
+        pooled = (g[ec].sum() / g[ec].sum().sum()).sort_values(ascending=False).head(3)
+        lines.append(f"{c}: {len(g)} pacientes, {int(g['n_cells'].sum()):,} células; células por paciente de {int(g['n_cells'].min()):,} "
+                     f"({g.loc[g['n_cells'].idxmin(), 'Patient']}) a {int(g['n_cells'].max()):,} ({g.loc[g['n_cells'].idxmax(), 'Patient']}). "
+                     "Clústeres más abundantes: " + "; ".join(f"{k[3:]} {v:.1%}" for k, v in pooled.items()) + ".")
+    lines.append("Lectura: los pacientes aportan números de células muy distintos y la composición por clúster difiere entre clases, "
+                 "por eso las métricas pesan igual a cada paciente y se mira el acierto dentro de cada clúster.")
+    _describe(outdir, "01_cohort.png", lines)
     fig.savefig(outdir / "01_cohort.png", dpi=130)
     plt.close(fig)
 
@@ -159,6 +182,14 @@ def fig_pca_variance(var_df: pd.DataFrame, components, outdir: Path) -> None:
     ax.set(xlabel="Number of components", ylabel="Cumulative explained variance (scaled HVG)", ylim=(0, 1.02))
     ax.legend()
     fig.tight_layout()
+    lines = ["02_pca_variance.png",
+             "Qué expresa: varianza acumulada que explican las primeras componentes de la PCA (sobre los genes variables escalados), "
+             "media sobre las rondas de validación (banda = mínimo y máximo entre rondas). Las líneas verticales marcan los tamaños de PCA evaluados.", ""]
+    for r in components:
+        if r in g.index:
+            lines.append(f"{r} componentes: {g.loc[r, 'mean']:.1%} de la varianza (rango entre rondas {g.loc[r, 'min']:.1%} a {g.loc[r, 'max']:.1%}).")
+    lines.append("Lectura: pocas componentes explican una parte pequeña de la varianza total; la señal es difusa, no está concentrada en 2 ejes.")
+    _describe(outdir, "02_pca_variance.png", lines)
     fig.savefig(outdir / "02_pca_variance.png", dpi=130)
     plt.close(fig)
 
@@ -185,6 +216,14 @@ def fig_confusions(cms: dict, classes, task: str, outdir: Path) -> None:
                 a.set_ylabel("True class", fontsize=8)
     fig.suptitle(f"{task}: confusion matrices (rows normalised; each patient weighted equally)", fontsize=9)
     fig.tight_layout()
+    lines = [f"03_confusion_{task}.png",
+             f"Qué expresa: matrices de confusión (filas = clase real, columnas = predicha; normalizadas por filas; cada paciente pesa igual) "
+             f"para cada modelo y representación. La diagonal es la proporción de acierto de cada clase ({classes[0]} y {classes[1]}).", ""]
+    for (mo, rp), cm in cms.items():
+        cm = np.asarray(cm, dtype=float)
+        rec = np.diag(cm / cm.sum(axis=1, keepdims=True).clip(1e-12))
+        lines.append(f"{_name(mo)} | {rp}: acierto {classes[0]} {rec[0]:.2f}, acierto {classes[1]} {rec[1]:.2f}")
+    _describe(outdir, f"03_confusion_{task}.png", lines)
     fig.savefig(outdir / f"03_confusion_{task}.png", dpi=130)
     plt.close(fig)
 
@@ -214,6 +253,16 @@ def fig_components_vs_performance(results: pd.DataFrame, task: str, outdir: Path
     fig.suptitle(task, fontsize=10)
     fig.tight_layout(rect=(0, 0.1, 1, 0.97))
     _legend_below(fig, ax[0])
+    lines = [f"04_components_vs_performance_{task}.png",
+             "Qué expresa: rendimiento (Macro-F1 con cada paciente pesando igual, y acierto por paciente por voto mayoritario) según la "
+             "representación, ordenada de menos a más características. Línea continua = datos reales; discontinua = control con etiquetas permutadas "
+             "(debería quedar en torno al azar).", ""]
+    for (model, variant), g2 in results.groupby(["model", "variant"], sort=False):
+        g2 = g2.set_index("representation").loc[order]
+        lines.append(f"{_name(model)} / {variant}: " + "; ".join(
+            f"{r} F1 {row['macro_f1']:.3f}" + (f" (pac. {row['patient_acc']:.3f})" if pd.notna(row.get("patient_acc")) else "")
+            for r, row in g2.iterrows()))
+    _describe(outdir, f"04_components_vs_performance_{task}.png", lines)
     fig.savefig(outdir / f"04_components_vs_performance_{task}.png", dpi=130)
     plt.close(fig)
 
@@ -236,6 +285,14 @@ def fig_components_seeds(agg: pd.DataFrame, task: str, outdir: Path) -> None:
     fig.suptitle(task, fontsize=10)
     fig.tight_layout(rect=(0, 0.1, 1, 0.97))
     _legend_below(fig, ax[0])
+    lines = [f"06_components_vs_performance_seeds_{task}.png",
+             "Qué expresa: igual que la figura 04 pero con la media ± desviación sobre varias semillas. La desviación mide el ruido del "
+             "submuestreo de células y del random forest, NO la incertidumbre por tener pocos pacientes.", ""]
+    for (model, variant), g2 in agg.groupby(["model", "variant"], sort=False):
+        g2 = g2.set_index("representation").loc[order]
+        lines.append(f"{_name(model)} / {variant}: " + "; ".join(
+            f"{r} F1 {row['macro_f1_mean']:.3f} ± {0 if pd.isna(row['macro_f1_std']) else row['macro_f1_std']:.3f}" for r, row in g2.iterrows()))
+    _describe(outdir, f"06_components_vs_performance_seeds_{task}.png", lines)
     fig.savefig(outdir / f"06_components_vs_performance_seeds_{task}.png", dpi=130)
     plt.close(fig)
 
@@ -267,12 +324,28 @@ def fig_per_patient(pp: pd.DataFrame, task: str, outdir: Path) -> None:
     _heatmap_panels(d, "Patient", "representation", "accuracy", list(order["Patient"]),
                     lambda rows: [f"{p} ({lab[p]})" for p in rows], "Fraction of cells correctly classified",
                     outdir / f"05_per_patient_{task}.png")
+    lines = [f"05_per_patient_{task}.png",
+             "Qué expresa: fracción de células de cada paciente (filas) bien clasificadas con cada representación (columnas), para cada modelo. "
+             "Verde = acierto alto, rojo = bajo. Entre paréntesis, la clase real del paciente.", ""]
+    for mo, g2 in d.groupby("model", sort=False):
+        mean_acc = g2.groupby("Patient")["accuracy"].mean()
+        bad = [f"{p} ({lab[p]}) {v:.2f}" for p, v in mean_acc.sort_values().items() if v < 0.5]
+        lines.append(f"{_name(mo)}: acierto medio por paciente (media sobre representaciones) entre {mean_acc.min():.2f} ({mean_acc.idxmin()}) y "
+                     f"{mean_acc.max():.2f} ({mean_acc.idxmax()}). Pacientes por debajo de 0,50: " + ("; ".join(bad) if bad else "ninguno") + ".")
+    _describe(outdir, f"05_per_patient_{task}.png", lines)
 
 
 def fig_by_cluster(bc: pd.DataFrame, task: str, outdir: Path) -> None:
     d = bc[bc["variant"] == "real"]
     _heatmap_panels(d, "cluster", "representation", "balanced_accuracy", sorted(d["cluster"].unique()),
                     lambda rows: list(rows), "Balanced accuracy within cluster", outdir / f"07_by_cluster_{task}.png")
+    lines = [f"07_by_cluster_{task}.png",
+             "Qué expresa: balanced accuracy dentro de cada tipo de célula endotelial (ECclusters), para cada representación y modelo; "
+             "responde a si la señal GBM/LGG persiste comparando solo células del mismo tipo. n/a = el clúster no tiene pacientes de ambas clases.", ""]
+    for mo, g2 in d.groupby("model", sort=False):
+        m = g2.groupby("cluster")["balanced_accuracy"].mean().dropna().sort_values(ascending=False)
+        lines.append(f"{_name(mo)} (media sobre representaciones): " + "; ".join(f"{k} {v:.2f}" for k, v in m.items()))
+    _describe(outdir, f"07_by_cluster_{task}.png", lines)
 
 
 def fig_permutation(null_max: np.ndarray, real: dict, task: str, outdir: Path) -> None:
@@ -285,5 +358,119 @@ def fig_permutation(null_max: np.ndarray, real: dict, task: str, outdir: Path) -
            ylabel="Number of label assignments")
     ax.legend(fontsize=8)
     fig.tight_layout()
+    lines = [f"08_permutation_{task}.png",
+             "Qué expresa: distribución nula del mejor Macro-F1 entre representaciones cuando las etiquetas se permutan entre pacientes "
+             "(todas las asignaciones posibles). Las líneas verticales son el Macro-F1 real de cada representación; "
+             "cuanto más a la derecha del grueso del histograma, menos probable por azar.", "",
+             f"Asignaciones: {len(null_max)}; mejor F1 nulo: media {np.mean(null_max):.3f}, percentil 95 {np.percentile(null_max, 95):.3f}, máximo {np.max(null_max):.3f}."]
+    for rn, v in real.items():
+        lines.append(f"{rn}: F1 real {v:.3f}; p ajustado (proporción de asignaciones con mejor F1 >= real) = {(np.asarray(null_max) >= v - 1e-12).mean():.3f}")
+    _describe(outdir, f"08_permutation_{task}.png", lines)
     fig.savefig(outdir / f"08_permutation_{task}.png", dpi=130)
     plt.close(fig)
+
+
+STUDY_COLORS = {"Walchli": "#0072B2", "Xie": "#E69F00"}
+GLIOMA_COLORS = {"GBM": "#D55E00", "LGG": "#009E73"}
+
+
+def _scatter_two_panels(df, xcol, ycol, xlabel, ylabel, title, path, boundary=None):
+    fig, ax = plt.subplots(1, 2, figsize=(12, 5), sharex=True, sharey=True)
+    order = df.sample(frac=1.0, random_state=0)
+    for s_, c in STUDY_COLORS.items():
+        g = order[order["study"] == s_]
+        ax[0].scatter(g[xcol], g[ycol], s=3, alpha=0.25, color=c, label=s_, rasterized=True)
+    for gt, c in GLIOMA_COLORS.items():
+        g = order[order["glioma_type"] == gt]
+        for s_, mk in (("Walchli", "o"), ("Xie", "^")):
+            h = g[g["study"] == s_]
+            ax[1].scatter(h[xcol], h[ycol], s=3, alpha=0.25, color=c, marker=mk, label=f"{gt} ({s_})", rasterized=True)
+    ax[0].set_title("Colour = study", fontsize=10)
+    ax[1].set_title("Colour = glioma type (circle = Walchli, triangle = Xie)", fontsize=10)
+    for a in ax:
+        a.set(xlabel=xlabel)
+        if boundary is not None:
+            w, b = boundary
+            xs, ylim = np.array(a.get_xlim()), a.get_ylim()
+            if abs(w[1]) > 1e-9:
+                a.plot(xs, -(w[0] * xs + b) / w[1], "k--", lw=1.2, label="decision boundary (final logistic regression)")
+            elif abs(w[0]) > 1e-9:
+                a.axvline(-b / w[0], color="k", ls="--", lw=1.2, label="decision boundary (final logistic regression)")
+            a.set_xlim(xs)
+            a.set_ylim(ylim)                  # la frontera no debe cambiar la escala de los puntos
+        lg = a.legend(fontsize=8, markerscale=4, loc="best")
+    ax[0].set_ylabel(ylabel)
+    fig.suptitle(title, fontsize=10)
+    fig.tight_layout()
+    fig.savefig(path, dpi=130)
+    plt.close(fig)
+
+
+def fig_batch_model_space(df, boundary, classes, outdir: Path) -> None:
+    name = "09_batch_model_space.png"
+    _scatter_two_panels(df, "PC1", "PC2", "PC1 (PCA fitted on Walchli)", "PC2",
+                        "Cells in the space seen by the trained PCA-2 model", Path(outdir) / name, boundary)
+    lines = [name,
+             "Qué expresa: cada punto es una célula endotelial proyectada sobre las 2 componentes de la PCA-2 del modelo final, "
+             "que se ajustó solo con Walchli. Izquierda: color = estudio. Derecha: color = tipo de glioma. "
+             "La línea discontinua es la frontera de decisión de la regresión logística final: a un lado predice "
+             f"{classes[1]} y al otro {classes[0]}. Si Xie ocupa otra zona que Walchli, el modelo se enfrenta a datos fuera de lo que aprendió.", ""]
+    for s_, g in df.groupby("study"):
+        lines.append(f"{s_}: PC1 media {g['PC1'].mean():.2f} (sd {g['PC1'].std():.2f}), PC2 media {g['PC2'].mean():.2f} (sd {g['PC2'].std():.2f}); "
+                     f"{(g['side'] == classes[1]).mean():.1%} de las células caen en el lado {classes[1]}.")
+    for (s_, gt), g in df.groupby(["study", "glioma_type"]):
+        lines.append(f"  {s_} / {gt}: {(g['side'] == classes[1]).mean():.1%} en el lado {classes[1]} ({len(g):,} células)"
+                     + (" [datos de entrenamiento, descriptivo]" if s_ == "Walchli" else " [datos externos]"))
+    w_, x_ = df[df["study"] == "Walchli"], df[df["study"] == "Xie"]
+    for c in ("PC1", "PC2"):
+        sd = np.sqrt((w_[c].var() + x_[c].var()) / 2)
+        lo, hi = np.percentile(w_[c], [2.5, 97.5])
+        out = ((x_[c] < lo) | (x_[c] > hi)).mean()
+        lines.append(f"{c}: diferencia Xie - Walchli = {(x_[c].mean() - w_[c].mean()) / sd:+.2f} desviaciones; "
+                     f"{out:.1%} de las células de Xie quedan fuera del rango central (95 %) de Walchli (esperado por azar: 5 %).")
+    _describe(outdir, name, lines)
+
+
+def fig_batch_joint(df, eta, var_expl, outdir: Path) -> None:
+    name = "10_batch_joint_pca.png"
+    _scatter_two_panels(df, "PC1", "PC2", "PC1 (PCA fitted on both studies)", "PC2",
+                        "Cells in a PCA fitted on Walchli and Xie together", Path(outdir) / name)
+    lines = [name,
+             "Qué expresa: PCA ajustada con las células de ambos estudios a la vez (solo para visualizar). Izquierda: color = estudio; "
+             "si los colores se separan, el estudio es una dirección principal de variación. Derecha: color = tipo de glioma.",
+             f"Las 5 primeras componentes explican {var_expl:.1%} de la varianza.", "",
+             "Porcentaje de varianza de cada componente asociado a cada variable (eta²; el paciente está anidado en el estudio, por lo que su eta² siempre es mayor):"]
+    for r in eta.itertuples():
+        lines.append(f"  {r.component}: estudio {r.eta2_study:.3f} | tipo de glioma {r.eta2_glioma_type:.3f} | paciente {r.eta2_patient:.3f}")
+    _describe(outdir, name, lines)
+
+
+def fig_batch_domain(res, depth, outdir: Path) -> None:
+    name = "11_batch_domain_classifier.png"
+    reps = res.drop_duplicates("representation").sort_values("n_features", kind="stable")["representation"].tolist()
+    fig, ax = plt.subplots(1, 2, figsize=(12, 4.6), sharex=True)
+    for (m, rg), g in res.groupby(["model", "regress_depth"], sort=False):
+        g = g.set_index("representation").loc[reps]
+        for a, col in zip(ax, ("balanced_accuracy", "auc")):
+            a.plot(range(len(reps)), g[col].to_numpy(), marker="o", ls="-" if rg else "--",
+                   label=f"{_name(m)} / {'with' if rg else 'without'} depth regression")
+    for a, col, lab in zip(ax, ("balanced_accuracy", "auc"), ("Balanced accuracy (study, new patients)", "AUC (study, new patients)")):
+        a.axhline(0.5, color="gray", ls=":", label="chance")
+        a.axhline(depth[col], color="red", ls="-.", lw=1, label="depth only (nCount, nFeature)")
+        a.set_xticks(range(len(reps)), reps, fontsize=8)
+        a.set(ylabel=lab, ylim=(0.4, 1.02), xlabel="Representation")
+    fig.tight_layout(rect=(0, 0.14, 1, 1))
+    _legend_below(fig, ax[0], ncol=3)
+    fig.savefig(Path(outdir) / name, dpi=130)
+    plt.close(fig)
+    lines = [name,
+             "Qué expresa: capacidad de un clasificador para adivinar el ESTUDIO (Walchli o Xie) de las células de un paciente que no ha visto "
+             "(dejar un paciente fuera: una ronda por paciente de ambos estudios), según la representación. 0,5 = azar; 1,0 = el estudio se identifica sin error. "
+             "Línea roja: lo mismo usando solo la profundidad de secuenciación. Continua = con regresión de profundidad; discontinua = sin ella.", ""]
+    for (m, rg), g in res.groupby(["model", "regress_depth"], sort=False):
+        g = g.set_index("representation").loc[reps]
+        lines.append(f"{_name(m)} / {'con' if rg else 'sin'} regresión de profundidad: " + "; ".join(
+            f"{r} bal.acc {row['balanced_accuracy']:.3f}, AUC {row['auc']:.3f}, pacientes {row['patient_acc']:.2f}" for r, row in g.iterrows()))
+    lines.append(f"Solo profundidad: bal.acc {depth['balanced_accuracy']:.3f}, AUC {depth['auc']:.3f}, pacientes {depth['patient_acc']:.2f}.")
+    lines.append("Lectura: valores cercanos a 1,0 indican un efecto de estudio fuerte (batch) que un modelo puede aprovechar en vez de la biología.")
+    _describe(outdir, name, lines)
