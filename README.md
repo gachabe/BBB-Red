@@ -20,7 +20,8 @@ Pipeline reproducible: matriz de expresión (células endoteliales x genes) → 
 | **Validación externa (Xie, 7 pacientes)** | **No se replica:** macro-F1 0,54-0,60; el modelo llama LGG a casi todo (los 4 GBM solo se aciertan 2, por poco) |
 | **Validación externa, solo muestras `core` de Xie (6 pacientes; secundario fijado de antemano)** | **Mejor:** macro-F1 0,67-0,84 (PCA-5 con regresión logística 0,837 [0,700-0,946]); los 14 intervalos quedan por encima de 0,5, pero con 6 pacientes el bootstrap es poco fiable y el test exacto no puede bajar de p = 0,05 (4.9). Las células de muestras periféricas (`N`) empujan hacia LGG al menos en P045 y P046; P036 también se pierde, no está separado (4.7) |
 | Intervalos bootstrap sobre pacientes | **Muy anchos:** PCA-2 con regresión logística 0,739 [0,557-0,889] en Wälchli; en Xie completo casi todos incluyen 0,5 (4.9) |
-| Qué representan PC1 y PC2 | PC1 sigue la profundidad y la composición del paciente (rho 0,95); PC2 sigue el tipo de glioma, pero también la edad (4.8) |
+| Qué representan PC1 y PC2 | PC1 sigue la profundidad y la composición del paciente (rho 0,95); PC2 sigue el tipo de glioma, pero la edad predice igual de bien (AUC 0,896 ambas); no se pueden separar (4.8) |
+| **Xie solo con muestras periféricas (7 pacientes, exploratorio)** | **Azar:** macro-F1 0,41-0,55; la regresión logística llama LGG a todos (3/7). Con `core` funciona y con periferia no (4.7) |
 | **Efecto de estudio (batch) entre Wälchli y Xie** | **Muy fuerte:** el estudio se identifica casi sin error en pacientes nuevos (AUC hasta 1,000); no lo explica la profundidad |
 
 Línea base: predecir siempre la clase mayoritaria acierta 8/14 pacientes = 0,571 en Wälchli y 4/7 = 0,571 en Xie.
@@ -258,6 +259,8 @@ Random forest da cifras parecidas (HVG-2000: 0,939 con y 0,966 sin regresión de
 | P046 | GBM | 52 % → 94 % | 97 % |
 
   P036 (GBM, 36 % en el análisis completo) desaparece de `core`. Con los mismos pacientes, P046 pasa de 52 % a 94 % y P045 de 50 % a 64 % al quitar sus células de muestras `N`, así que las células periféricas **sí** empujan hacia LGG, al menos en estos dos. El único error de `core` es P038 (GBM, 2.236 células), a ~46-49 %: prácticamente cara o cruz. Quitar P036 también contribuye a la mejora global; no se ha cuantificado cuánto.
+- **Solo muestras periféricas** (exploratorio, 7 pacientes, 56.195 células; `data/xie_periph`): macro-F1 0,41-0,55 en todas las filas (balanced accuracy 0,54-0,60). Con regresión logística el acierto por paciente es 3/7 = 0,43 en todas las representaciones, es decir, solo los 3 LGG: llama LGG a todos. Con random forest, hasta 5/7 pero con F1 ~0,5. P036 solo tiene muestra periférica (`N036`), así que no hay forma de ver a P036 con tejido de núcleo.
+- **Lectura:** `core` funciona (F1 0,67-0,84) y periferia no (≈ azar), con los mismos pacientes salvo P036. Es coherente con que el tejido periférico empuje hacia LGG, además del detalle por paciente de arriba. No prueba que el tejido sea la única causa.
 - **Cautelas:** 6 pacientes (un paciente = 0,167 de acierto por paciente), 14 filas probadas sin corrección. Intervalos bootstrap en 4.9. Se ejecutó como análisis secundario fijado de antemano, pero después de ver que el principal fallaba. Es una indicación, no una replicación.
 
 ### 4.8 Qué representan PC1 y PC2 del modelo PCA-2 (`12_pc_meaning`)
@@ -275,8 +278,19 @@ Medias por paciente de Wälchli (14 pacientes). Correlaciones de Spearman sin aj
 | PC2 | fracción *Stem-to-EC* | -0,47 | 0,091 |
 
 - **PC1 sigue la profundidad y la composición celular del paciente, no el glioma**, aunque se regresó la profundidad por célula: a nivel de paciente persiste. Los GBM tienen valores de PC1 muy dispares (de -23,2 a +11,0).
-- **PC2 sigue el tipo de glioma, pero también la edad.** En Wälchli edad y tipo van juntas (LGG: 26-46 años salvo LGG1, 69; GBM: 48-82), así que no se pueden separar con estos datos. El modelo podría estar aprendiendo en parte edad o rasgos asociados.
-- **LGG1** (69 años, el único LGG mayor de 46) tiene PC2 = -5,4 y cae del lado GBM; los otros 5 LGG tienen PC2 entre +2,4 y +13,3. Es compatible con la confusión por edad, pero con un solo paciente no es demostración. Sus metadatos clínicos (subtipo, localización) siguen sin revisar.
+- **PC2 sigue el tipo de glioma, pero también la edad.** En Wälchli edad y tipo van juntas (LGG: 26-46 años salvo LGG1, 69; GBM: 48-82). Comprobación (`16_age_check`, 14 pacientes, exploratorio y con muy poca potencia):
+
+| Análisis | Resultado |
+|---|---|
+| Dejar un paciente fuera, solo edad | acierto 0,714 (fallan GBM7, GBM8, LGG1, LGG2) |
+| Dejar un paciente fuera, solo PC2 | 0,857 (fallan LGG1, LGG6) |
+| Dejar un paciente fuera, PC2 + edad | 0,929 (falla LGG1) |
+| AUC para LGG: edad (invertida) / PC2 | 0,896 / 0,896 |
+| Spearman PC2-edad: todos / solo GBM / solo LGG | -0,61 / +0,42 (n=8) / -0,60 (n=6) |
+| Spearman parcial de PC2 con LGG quitando la edad (rangos) | 0,455 |
+
+  La edad sola separa tan bien como PC2 por AUC, así que **no se puede descartar que PC2 sea en parte un indicador de edad**. Hay una pista de que PC2 aporta algo más (0,857 frente a 0,714; parcial 0,455; la edad dentro de cada clase va en direcciones opuestas, así que la correlación global refleja sobre todo la diferencia entre grupos), pero con 14 pacientes no es concluyente.
+- **LGG1** (69 años, el único LGG mayor de 46) tiene PC2 = -5,4 y cae del lado GBM; los otros 5 LGG tienen PC2 entre +2,4 y +13,3. Es compatible con la confusión por edad, pero con un solo paciente no es demostración. Los metadatos que trae el conjunto de datos para LGG1 son solo `PATH` = LGG, mujer y 69 años; **no incluye subtipo ni localización**. Su composición celular no destaca (capilar 41 %, capilar angiogénico 24 %, 923 células). Esos datos clínicos hay que pedirlos a la coautora o al artículo.
 - **Comprobación de C en PCA-2:** ver 4.4 (ruido, no fallo).
 
 ### 4.9 Intervalos bootstrap sobre pacientes (`13_bootstrap`)
@@ -326,7 +340,20 @@ Remuestreo de pacientes con reemplazo (5.000 veces, manteniendo el nº por clase
 | PCA-50 | 0,567 → 0,716 (7/7) | 0,603 → 0,618 (6/7) |
 | HVG-2000 | 0,572 → 0,725 (7/7) | 0,587 → 0,658 (7/7) |
 
-  Mejora en casi todas las filas, más con muchas dimensiones; en PCA-2 apenas. Apunta a que parte del fallo es un desplazamiento de medias entre estudios, pero con 7 pacientes, sin intervalos y probando 12 filas, es una pista.
+  Mejora en casi todas las filas, más con muchas dimensiones; en PCA-2 apenas. Apunta a que parte del fallo es un desplazamiento de medias entre estudios, pero con 7 pacientes y probando 12 filas, es una pista.
+
+  **Variante sin usar las células del paciente evaluado** (`--loo`: el desplazamiento de cada paciente se calcula con los otros 6 de Xie; sigue usando células de Xie sin etiquetas, pero no las del paciente que se predice). Macro-F1 (pacientes de 7):
+
+| Representación | Reg. logística | Random forest |
+|---|---|---|
+| PCA-2 | 0,566 (5/7) | 0,559 (5/7) |
+| PCA-5 | 0,651 (6/7) | 0,626 (5/7) |
+| PCA-10 | 0,653 (6/7) | 0,627 (5/7) |
+| PCA-20 | 0,622 (4/7) | 0,601 (5/7) |
+| PCA-50 | 0,743 (7/7) | 0,640 (6/7) |
+| HVG-2000 | 0,755 (7/7) | 0,678 (7/7) |
+
+  Los resultados son parecidos a la versión que usa a todos los pacientes (HVG-2000 con regresión logística 0,725 → 0,755), así que la mejora no depende de usar las células del propio paciente. Los intervalos de esta variante y de la periferia están en `results/bootstrap/bootstrap_ci.csv`; no están transcritos aquí (en la periferia, todos los F1 puntuales son ≤ 0,55).
 
 **b) Dejar un paciente fuera solo dentro de Xie (`14_within_xie`, 7 pacientes).** Macro-F1:
 
@@ -368,13 +395,11 @@ Remuestreo de pacientes con reemplazo (5.000 veces, manteniendo el nº por clase
 
 ## 7. Pendiente
 
-Hecho desde la versión anterior: análisis `core` (4.7), revisión de C (4.4), significado de PC1/PC2 (4.8), bootstrap (4.9), alineación de medias y dentro de Xie (4.10).
+Hecho: análisis `core` (4.7), periferia (4.7), revisión de C (4.4), PC1/PC2 y edad (4.8), bootstrap (4.9), alineación de medias, su variante sin las células del paciente evaluado, y dentro de Xie (4.10).
 
-1. **Separar el efecto de P036 del de las muestras `N`:** el detalle por paciente (4.7) ya muestra que quitar `N` mejora a P045 y P046; falta ejecutar solo muestras `T` incluyendo P036, si tiene muestra `T`.
-2. **Metadatos clínicos de LGG1** (subtipo, localización): único fallo interno sin explicación; la edad (69) es una pista (4.8).
-3. **Probar si la edad explica PC2:** p. ej. entrenar controlando por edad o comparar con un modelo solo de edad (con 14 pacientes tiene poca potencia).
-4. **Si se vuelve a alinear entre estudios:** hacerlo de forma no transductiva (calcular el desplazamiento sin usar el estudio de prueba) o con un método estándar (ComBat/Harmony).
-5. **Otro conjunto independiente** y, si es posible, anotación celular publicada de Xie para validar la selección de endotelio. Sería lo único que desempataría entre artefacto técnico y señal real; hoy no hay ninguno a mano y es posible que no exista.
+1. **Metadatos clínicos de LGG1** (subtipo, localización, mutaciones): no están en el conjunto de datos (4.8). Pedirlos a la coautora o buscarlos en el artículo.
+2. **Separar edad y tipo de glioma:** con estos 14 pacientes no se puede (4.8); haría falta una cohorte con edades solapadas entre GBM y LGG.
+3. **Otro conjunto independiente** y, si es posible, anotación celular publicada de Xie para validar la selección de endotelio. Sería lo único que desempataría entre artefacto técnico y señal real; hoy no hay ninguno a mano y es posible que no exista.
 
 ---
 
@@ -408,11 +433,17 @@ Configuraciones: `demo` (comprueba que todo funciona; no sacar conclusiones), `m
 .\.venv\Scripts\python.exe -m experiments.10_prepare_xie --folder "$([Environment]::GetFolderPath('Desktop'))\datos XIE" --reference-config configs/full.yaml --sites core --out data/xie_core
 .\.venv\Scripts\python.exe -m experiments.08_external --bundle models/full_tuned/bundle.joblib --external data/xie_core/xie_endothelial.h5ad --out results/external_xie_core
 
-# qué representan PC1/PC2, bootstrap, y los dos exploratorios (4.8-4.10)
+# solo muestras periféricas de Xie (exploratorio)
+.\.venv\Scripts\python.exe -m experiments.10_prepare_xie --folder "$([Environment]::GetFolderPath('Desktop'))\datos XIE" --reference-config configs/full.yaml --sites peripheral --out data/xie_periph
+.\.venv\Scripts\python.exe -m experiments.08_external --bundle models/full_tuned/bundle.joblib --external data/xie_periph/xie_endothelial.h5ad --out results/external_xie_periph
+
+# qué representan PC1/PC2, edad, bootstrap, y los exploratorios (4.8-4.10)
 .\.venv\Scripts\python.exe -m experiments.12_pc_meaning --config configs/full.yaml --bundle models/full_tuned/bundle.joblib --out results/pc_meaning
 .\.venv\Scripts\python.exe -m experiments.13_bootstrap --out results/bootstrap   # Wälchli, Xie, core, alineado y dentro de Xie (omite los que no existan)
 .\.venv\Scripts\python.exe -m experiments.15_align_external --config configs/full.yaml --bundle models/full_tuned/bundle.joblib --out results/external_xie_aligned
 .\.venv\Scripts\python.exe -m experiments.14_within_xie --config configs/full.yaml --out results/within_xie
+.\.venv\Scripts\python.exe -m experiments.15_align_external --config configs/full.yaml --bundle models/full_tuned/bundle.joblib --out results/external_xie_aligned --loo
+.\.venv\Scripts\python.exe -m experiments.16_age_check
 
 # diagnóstico de estudio (batch): numérico + gráficas 09, 10, 11
 .\.venv\Scripts\python.exe -m experiments.11_batch --config configs/full.yaml --xie data/xie/xie_endothelial.h5ad --bundle models/full_tuned/bundle.joblib --out results/batch
