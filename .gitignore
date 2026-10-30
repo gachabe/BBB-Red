@@ -16,3 +16,5 @@ data/xie_core/*
 data/xie_min1500/*
 
 data/xie_periph/*
+
+results/*.log
