@@ -47,6 +47,8 @@ DEFAULT_STUDIES = {
     "Xie core": "results/external_xie_core/results_per_patient_external.csv",
     "Xie alineado (exploratorio)": "results/external_xie_aligned/results_per_patient_external_aligned.csv",
     "Dentro de Xie (exploratorio)": "results/within_xie/results_per_patient_within_xie.csv",
+    "Xie alineado sin sus células (exploratorio)": "results/external_xie_aligned/results_per_patient_external_aligned_loo.csv",
+    "Xie solo periferia (exploratorio)": "results/external_xie_periph/results_per_patient_external.csv",
 }
 
 

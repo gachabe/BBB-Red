@@ -62,3 +62,19 @@ def test_alignment_zero_shift_equals_unaligned_and_script_runs(cfg, dataset_and_
     xie = _xie_like(tmp_path, shift=2.0)
     res = importlib.import_module("experiments.15_align_external").main(cfg, b, xie, tmp_path / "al")
     assert "macro_f1_aligned" in res.columns and "All genes" not in set(res["representation"])
+
+
+def test_age_check_runs(tmp_path):
+    rng = np.random.default_rng(1)
+    t = pd.DataFrame({"Patient": [f"P{i}" for i in range(14)], "glioma_type": ["GBM"] * 8 + ["LGG"] * 6,
+                      "age_num": np.r_[rng.uniform(48, 80, 8), rng.uniform(25, 50, 6)], "PC2": np.r_[rng.normal(-4, 3, 8), rng.normal(7, 3, 6)]})
+    t.to_csv(tmp_path / "t.csv", index=False)
+    res = importlib.import_module("experiments.16_age_check").main(tmp_path / "t.csv", tmp_path / "o")
+    assert res["valor"].notna().all() and (tmp_path / "o" / "descriptions" / "16_age_vs_pc2.txt").exists()
+
+
+def test_alignment_loo_runs(cfg, dataset_and_folds, tmp_path):
+    ds, b = _bundle(cfg, dataset_and_folds, tmp_path)
+    xie = _xie_like(tmp_path, shift=2.0)
+    res = importlib.import_module("experiments.15_align_external").main(cfg, b, xie, tmp_path / "loo", loo=True)
+    assert {"macro_f1_loo", "patient_acc_loo"} <= set(res.columns) and res["macro_f1_loo"].between(0, 1).all()
