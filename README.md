@@ -18,7 +18,7 @@ Pipeline reproducible: matriz de expresión (células endoteliales x genes) → 
 | La señal es solo composición de tipos celulares | **No:** el acierto se mantiene dentro de casi todos los `ECclusters` (0,60-0,77) |
 | Ajustar hiperparámetros (validación anidada) | **No cambia nada:** diferencias de ±0,02, dentro del ruido; el orden de representaciones no cambia |
 | **Validación externa (Xie, 7 pacientes)** | **No se replica:** macro-F1 0,54-0,60; el modelo llama LGG a casi todo (los 4 GBM solo se aciertan 2, por poco) |
-| **Validación externa, solo muestras `core` de Xie (6 pacientes; secundario fijado de antemano)** | **Mejor:** macro-F1 0,67-0,84 (PCA-5 con regresión logística 0,837); sin intervalos aún y con 6 pacientes. Sugiere que las muestras periféricas (`N`) y/o el paciente P036 explican parte del fallo; no está separado (4.7) |
+| **Validación externa, solo muestras `core` de Xie (6 pacientes; secundario fijado de antemano)** | **Mejor:** macro-F1 0,67-0,84 (PCA-5 con regresión logística 0,837); sin intervalos aún y con 6 pacientes. Las células de muestras periféricas (`N`) empujan hacia LGG al menos en P045 y P046; P036 también se pierde, no está separado (4.7) |
 | Intervalos bootstrap sobre pacientes | **Muy anchos:** PCA-2 con regresión logística 0,739 [0,557-0,889] en Wälchli; en Xie completo casi todos incluyen 0,5 (4.9) |
 | Qué representan PC1 y PC2 | PC1 sigue la profundidad y la composición del paciente (rho 0,95); PC2 sigue el tipo de glioma, pero también la edad (4.8) |
 | **Efecto de estudio (batch) entre Wälchli y Xie** | **Muy fuerte:** el estudio se identifica casi sin error en pacientes nuevos (AUC hasta 1,000); no lo explica la profundidad |
@@ -246,7 +246,18 @@ Random forest da cifras parecidas (HVG-2000: 0,939 con y 0,966 sin regresión de
 | Todos los genes | 0,824 / 0,827 / 1,000 | 0,804 / 0,804 / 1,000 |
 
 - **Mejora clara respecto a Xie completo** (F1 0,54-0,60 → 0,67-0,84) en todas las representaciones y en ambos modelos, y con más de dos dimensiones, incluidos todos los genes.
-- **Lo que no sabemos:** si la mejora viene de quitar las muestras periféricas `N`, de quitar a P036 (GBM mal clasificado en 4.5) o de ambas. No se ha mirado el detalle por paciente de esta ejecución (`results/external_xie_core/results_per_patient_external.csv`).
+- **Detalle por paciente (regresión logística, % de células bien clasificadas, Xie completo → `core`):**
+
+| Paciente | Etiqueta | PCA-2 completo → core | PCA-5 core |
+|---|---|---|---|
+| P027 | LGG | 73 % → 73 % | 91 % |
+| P037 | LGG | 90 % → 90 % | 98 % |
+| P043 | LGG | 62 % → 55 % | 87 % |
+| P038 | GBM | 21 % → 46 % | 49 % |
+| P045 | GBM | 50 % → 64 % | 80 % |
+| P046 | GBM | 52 % → 94 % | 97 % |
+
+  P036 (GBM, 36 % en el análisis completo) desaparece de `core`. Con los mismos pacientes, P046 pasa de 52 % a 94 % y P045 de 50 % a 64 % al quitar sus células de muestras `N`, así que las células periféricas **sí** empujan hacia LGG, al menos en estos dos. El único error de `core` es P038 (GBM, 2.236 células), a ~46-49 %: prácticamente cara o cruz. Quitar P036 también contribuye a la mejora global; no se ha cuantificado cuánto.
 - **Cautelas:** 6 pacientes (un paciente = 0,167 de acierto por paciente), sin intervalo de confianza, 14 filas probadas sin corrección. Se ejecutó como análisis secundario fijado de antemano, pero después de ver que el principal fallaba. Es una indicación, no una replicación.
 
 ### 4.8 Qué representan PC1 y PC2 del modelo PCA-2 (`12_pc_meaning`)
@@ -343,7 +354,7 @@ Remuestreo de pacientes con reemplazo (5.000 veces, manteniendo el nº por clase
 
 Hecho desde la versión anterior: análisis `core` (4.7), revisión de C (4.4), significado de PC1/PC2 (4.8), bootstrap (4.9), alineación de medias y dentro de Xie (4.10).
 
-1. **Separar qué explica la mejora en `core`:** detalle por paciente de `results/external_xie_core/results_per_patient_external.csv`; y comprobar con solo `T` incluyendo P036 (muestras `T` de todos los pacientes) frente a `core` sin P036.
+1. **Separar el efecto de P036 del de las muestras `N`:** el detalle por paciente (4.7) ya muestra que quitar `N` mejora a P045 y P046; falta ejecutar solo muestras `T` incluyendo P036, si tiene muestra `T`.
 2. **Bootstrap para el análisis `core`** y para la alineación (4.10 a).
 3. **Metadatos clínicos de LGG1** (subtipo, localización): único fallo interno sin explicación; la edad (69) es una pista (4.8).
 4. **Probar si la edad explica PC2:** p. ej. entrenar controlando por edad o comparar con un modelo solo de edad (con 14 pacientes tiene poca potencia).
