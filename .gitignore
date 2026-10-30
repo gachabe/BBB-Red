@@ -8,3 +8,5 @@ data/processed/*
 !data/processed/.gitkeep
 results/*/
 !results/.gitkeep
+models/*
+!models/.gitkeep
