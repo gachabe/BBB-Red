@@ -466,6 +466,8 @@ Configuración fijada de antemano: paquetes de 100 células, media de probabilid
 ### 4.12 Fase 2: robustez del resultado `core` (`experiments.22_phase2`; `results/pseudobulk_phase2`)
 Todo con paquetes de 100 células (salvo que se indique), 3 semillas, regresión logística (salvo random forest), mismo pipeline sin fugas que 4.11. Lo que se hizo y lo que salió:
 
+*Añadido después, resultados pendientes de ejecutar:* Xie con solo el 25 / 53,9 / 80 % de células más endoteliales por muestra, 500 y 5.000 genes variables, C = 0,01 y 100 en la regresión, y la correlación entre predicción y edad dentro de cada diagnóstico en Wälchli (`age_vs_prediction_within_class.csv`, `walchli_patient_table.csv`).
+
 **1. El `core` aguanta casi todas las variaciones (macro-F1 en Xie `core`, 6 pacientes; con 6 pacientes un solo error baja el valor a 0,83-0,89)**
 
 | Variante | PCA-2 | PCA-5 | HVG-2000 |
@@ -477,15 +479,15 @@ Todo con paquetes de 100 células (salvo que se indique), 3 semillas, regresión
 | Igualados por UMI (~150.000) | 0,943 | 1,000 | **0,886** |
 | Conteos adelgazados a igual profundidad | 1,000 | 1,000 | 1,000 |
 | Solo genes comunes a ambos estudios | 1,000 | 1,000 | 1,000 |
-| Xie con filtro mitocondrial < 10 % del artículo | 1,000 | 1,000 | 1,000 |
-| Xie solo con células claramente endoteliales | 1,000 | 1,000 | 1,000 |
+| Xie con filtro mitocondrial < 10 % del artículo (retiene el 98 %) | 1,000 | 1,000 | 1,000 |
+| Xie solo con células claramente endoteliales (retiene el 98 %) | 1,000 | 1,000 | 1,000 |
 | Lo anterior + genes comunes + misma profundidad | 1,000 | 1,000 | 1,000 |
 | Sin los 500 / 2.000 / 5.000 / 10.000 / 15.000 genes que más distinguen los estudios | 1,000 hasta 10.000; 0,886 con 15.000 | 1,000 en todos | 1,000 en todos |
 
 - **PCA-5 es 1,000 en todas las variantes**; los fallos son un paciente en alguna semilla y alguna representación. Las variantes que bajan de 0,9 se repitieron con paquetes de 250 y 500: con UMI igualados vuelve a 1,000; con disjuntos de 100 y 250 células HVG-2000 queda en 0,829.
-- **Filtrar Xie no cambia nada** (idénticos al milímetro): la laxitud de la selección endotelial frente al artículo (106.399 frente a 57.324 endoteliales, 4.11) no explica el resultado. Cuántas células sobreviven a cada filtro está en `xie_filter_counts.csv`.
+- **Filtrar Xie** (filtro mitocondrial del artículo, y solo células con ≥ 2 marcadores endoteliales y puntuación endotelial mayor que mural, inmune y glial) **no cambia nada**, pero el control es débil: esos filtros solo eliminan el 2 % de las células (104.305 y 103.796 de 106.399 sobreviven), porque nuestra selección ya exigía marcadores endoteliales. No resuelve la diferencia con el artículo (106.399 frente a 57.324 endoteliales, 4.11). Para probarlo de verdad se añadió el filtro `top54`: quedarse con el 53,9 % más endotelial de cada muestra (la proporción publicada) — ver abajo si ya se ejecutó. Cuántas células sobreviven a cada filtro: `xie_filter_counts.csv`.
 - **Quitar 15.000 de los ≈ 22.700 genes comunes que más distinguen los estudios no rompe el `core`.** La señal no depende de los genes de estudio más extremos; tampoco está concentrada en pocos genes.
-- La lectura: ninguna decisión técnica probada (modelo, forma del paquete, profundidad, genes, calidad de Xie) explica la separación perfecta. Lo que no descartan es una diferencia real entre las cohortes que coincide con GBM/LGG (edad, procesamiento), que ninguna de estas variantes toca.
+- La lectura: ninguna decisión técnica probada (modelo, forma del paquete, profundidad, genes) explica la separación perfecta. Lo que no descartan es una diferencia real entre las cohortes que coincide con GBM/LGG (edad, procesamiento), que ninguna de estas variantes toca.
 
 **2. Dependencia del conjunto de entrenamiento**
 - 100 subconjuntos de 10 pacientes de Wälchli (6 GBM + 4 LGG): separación sin error en el 91 % (PCA-5), 85 % (PCA-2) y 84 % (HVG-2000, PCA-10, PCA-20); con todos los genes, 39 %. La mediana del AUROC es 1,000 en todas las representaciones: ordena bien a los pacientes aunque el umbral a veces falle.

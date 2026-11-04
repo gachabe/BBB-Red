@@ -47,6 +47,7 @@ COLS_W, COLS_X = M19.COLS_W, M19.COLS_X
 REPS_MAIN = ["PCA-2", "PCA-5", "HVG-2000"]
 OK_F1 = 0.9
 PRIMARY, PERIPHERY_SIZES = 100, (100, 250, 500)
+TOP = {"top25": 0.25, "top54": 57324 / 106399, "top80": 0.80}   # fracción de células más endoteliales de cada muestra que se conserva
 
 
 def _log(msg: str) -> None:
@@ -65,7 +66,8 @@ _MASKS: dict = {}
 def xie_mask(S, kind: str) -> np.ndarray:
     """Filtros de células de Xie más estrictos que los de la preparación original (QC mínimo de 200 genes, sin filtro mitocondrial ni de dobletes):
       qc_paper  <10 % de conteos mitocondriales (criterio del artículo; los 200 genes ya se aplicaron);
-      pure      qc_paper + al menos 2 de los marcadores endoteliales detectados y puntuación endotelial > puntuaciones mural, inmune y glial."""
+      pure      qc_paper + al menos 2 de los marcadores endoteliales detectados y puntuación endotelial > puntuaciones mural, inmune y glial;
+      top54     como pure pero quedándose solo con el 53,9 % más endotelial de cada muestra (la proporción 57.324/106.399 del artículo)."""
     key = (id(S[3]), kind)
     if key in _MASKS:
         return _MASKS[key]
@@ -74,7 +76,7 @@ def xie_mask(S, kind: str) -> np.ndarray:
     mt = np.flatnonzero(np.char.startswith(gx, "MT-"))
     pct_mt = np.asarray(Cx[:, mt].sum(axis=1)).ravel() / np.maximum(tot, 1) if len(mt) else np.zeros(Cx.shape[0])
     keep = pct_mt < 0.10
-    if kind == "pure":
+    if kind == "pure" or kind in TOP:
         pos = {g: i for i, g in enumerate(gx)}
 
         def score(names):
@@ -88,7 +90,12 @@ def xie_mask(S, kind: str) -> np.ndarray:
 
         e, n_e = score(ENDO)
         others = np.max([score(g)[0] for g in (MURAL, IMMUNE, GLIA)], axis=0)
-        keep &= (n_e >= 2) & (e > others)
+        if kind == "pure":
+            keep &= (n_e >= 2) & (e > others)
+        else:                                                    # top54: el 53,9 % (=57.324/106.399, el recuento publicado) más endotelial de cada muestra
+            margin = np.where(keep & (n_e >= 2), e - others, -np.inf)
+            rank = pd.Series(margin).groupby(ox["sample"].to_numpy()).rank(pct=True, ascending=False).to_numpy()
+            keep &= (n_e >= 2) & (rank <= TOP[kind])
     _MASKS[key] = keep
     return keep
 
@@ -136,6 +143,7 @@ def build(S, spec: dict, seed: int, need_ext: bool = True):
 def run_variant(S, rom, spec: dict, seed: int) -> dict:
     b = build(S, spec, seed, need_ext=not spec.get("internal_only"))
     model = spec.get("model", "lr")
+    rom = {**rom, "hvg": spec["hvg"]} if spec.get("hvg") else rom
     mw, y, W, A = b["mw"], b["y"], b["W"], b["A"]
     internal = lopo(W, mw, y, rom, model=model)
     pat = to_patient(internal, keys=("group", "representation"))
@@ -272,6 +280,35 @@ def stage_converge(res1: Path, out: Path, size=None, ks=(1, 2, 3, 5, 10, 15, 20)
     pd.DataFrame(comp).groupby("representation").mean(numeric_only=True).drop(columns="seed").reset_index().to_csv(out / "variance_components_anova.csv", index=False)
 
 
+
+def stage_patient_table(S, res1: Path, out: Path):
+    """Una fila por paciente de Wälchli: edad, nº de células, profundidad, predicción interna; y correlación de la predicción con la edad DENTRO de cada diagnóstico
+    (si la expresión solo codificara edad, la predicción correlacionaría con la edad también dentro de GBM y dentro de LGG)."""
+    from scipy.stats import spearmanr
+    ow = S[1]
+    base = ow.groupby("Patient").agg(diagnosis=("glioma_type", "first"), age=("age_num", "first"), n_cells=("Patient", "size"), median_umi=("nCount_RNA", "median")).reset_index().rename(columns={"Patient": "patient"})
+    d = pd.read_csv(res1 / "internal_patient_predictions.csv")
+    if "size" in d:
+        d = d[d["size"].astype(str) == str(PRIMARY)]
+    pcol = "p_gbm_mean" if "p_gbm_mean" in d else "p_mean"
+    gcol = "group" if "group" in d else "patient"
+    wide = d.groupby([gcol, "representation"])[pcol].mean().unstack().reset_index().rename(columns={gcol: "patient"})
+    t = base.merge(wide, on="patient", how="left")
+    t.to_csv(out / "walchli_patient_table.csv", index=False)
+    rows = []
+    for rep in [c for c in wide.columns if c != "patient"]:
+        for dx, g in t.groupby("diagnosis"):
+            g = g.dropna(subset=["age", rep])
+            if len(g) >= 4:
+                r, pv = spearmanr(g["age"], g[rep])
+                rows.append(dict(representation=rep, diagnosis=dx, n=len(g), spearman_age_vs_prob=float(r), p_value=float(pv)))
+        g = t.dropna(subset=["age", rep])
+        r, pv = spearmanr(g["age"], g[rep])
+        rows.append(dict(representation=rep, diagnosis="todos", n=len(g), spearman_age_vs_prob=float(r), p_value=float(pv)))
+    pd.DataFrame(rows).to_csv(out / "age_vs_prediction_within_class.csv", index=False)
+
+
+
 def _logit(p):
     p = np.clip(np.asarray(p, dtype=float), 1e-6, 1 - 1e-6)
     return np.log(p / (1 - p))
@@ -346,6 +383,14 @@ ROBUSTNESS = {                                           # nombre -> (spec, come
     "balanced_100": (dict(BASE, mode="balanced", internal_only=True), "equilibrado por estado endotelial (solo interno)"),
     "xie_qc_paper": (dict(BASE, xie_filter="qc_paper"), "Xie con filtro mitocondrial <10 % (criterio del artículo)"),
     "xie_pure": (dict(BASE, xie_filter="pure"), "Xie solo células claramente endoteliales (≥2 marcadores y endotelial > mural/inmune/glía)"),
+    "xie_top54": (dict(BASE, xie_filter="top54"), "Xie con solo el 53,9 % de células más endoteliales de cada muestra (el recuento del artículo)"),
+    "xie_top25": (dict(BASE, xie_filter="top25"), "Xie con solo el 25 % de células más endoteliales de cada muestra"),
+    "xie_top80": (dict(BASE, xie_filter="top80"), "Xie con el 80 % más endotelial de cada muestra"),
+    "xie_top54_strictest": (dict(BASE, xie_filter="top54", common=True, thin="auto"), "top54 + genes comunes + misma profundidad"),
+    "hvg_500": (dict(BASE, hvg=500), "500 genes muy variables en lugar de 2.000 (afecta a HVG y a las PCA)"),
+    "hvg_5000": (dict(BASE, hvg=5000), "5.000 genes muy variables"),
+    "lr_C0.01": (dict(BASE, model="lr:0.01"), "regresión logística más regularizada (C = 0,01)"),
+    "lr_C100": (dict(BASE, model="lr:100"), "regresión logística menos regularizada (C = 100)"),
     "xie_pure_strictest": (dict(BASE, xie_filter="pure", common=True, thin="auto"), "Xie puro + genes comunes + misma profundidad"),
 }
 
@@ -354,7 +399,7 @@ def stage_xie_filters(S, out: Path):
     """Cuántas células de Xie sobreviven a cada filtro, por muestra (el artículo publica 103.230 células y 57.324 endoteliales en total)."""
     ox = S[4]
     rows = []
-    for kind in ("qc_paper", "pure"):
+    for kind in ("qc_paper", "pure", "top25", "top54", "top80"):
         km = xie_mask(S, kind)
         for smp, g in ox.assign(k=km).groupby("sample"):
             rows.append(dict(filter=kind, sample=smp, patient=g["Patient"].iloc[0], site=g["site"].iloc[0], n_cells_loaded=len(g), n_cells_kept=int(g["k"].sum())))
@@ -575,7 +620,7 @@ def stage_summary(out: Path):
                       ("state_specific_internal.csv", "Paquetes específicos de cada estado endotelial (interno)"),
                       ("periphery_threshold_diagnostic.csv", "Periferia: umbral"), ("periphery_logit_shift.csv", "Periferia: desplazamiento de logit frente al núcleo"),
                       ("replicate_convergence.csv", "Convergencia de réplicas"), ("variance_components_anova.csv", "Componentes de varianza (ANOVA)"),
-                      ("age_prior_xie.csv", "Modelo solo de edad con las edades medias de Xie"), ("holm_permutation.csv", "Holm sobre las permutaciones de la fase 1")):
+                      ("age_prior_xie.csv", "Modelo solo de edad con las edades medias de Xie"), ("age_vs_prediction_within_class.csv", "Correlación edad-predicción dentro de cada diagnóstico (Wälchli)"), ("walchli_patient_table.csv", "Pacientes de Wälchli"), ("xie_filter_totals.csv", "Células de Xie que sobreviven a cada filtro (total)"), ("holm_permutation.csv", "Holm sobre las permutaciones de la fase 1")):
         p = out / fn
         d = _read(p)
         if d is not None:
@@ -600,6 +645,16 @@ def stage_summary(out: Path):
             verdict.append(f"{a_}: AUROC medio {g['auroc'].mean():.2f} (HVG-2000: {g[g['representation'] == 'HVG-2000']['auroc'].mean():.2f})")
     lines.insert(1, "## Veredicto automático (revisar con las tablas)\n\n" + "\n".join(f"- {v}" for v in verdict) + "\n")
     (out / "phase2_summary.md").write_text("\n".join(lines), encoding="utf-8")
+    short = [l for l in lines[:2]]                                           # corto: veredicto + sensibilidad + edad dentro de clase + filtros
+    for fn in ("robustness_table.csv", "age_vs_prediction_within_class.csv", "xie_filter_totals.csv", "dropstudy_breakpoint.csv"):
+        d = _read(out / fn)
+        if d is not None:
+            if fn == "robustness_table.csv":
+                d = d[[c for c in d.columns if c == "variante" or c.startswith("core ") or c == "todo HVG-2000" or c == "periferia HVG-2000" or c == "interno HVG-2000"]]
+            if fn == "age_vs_prediction_within_class.csv":
+                d = d[d["representation"].isin(["PCA-2", "PCA-5", "HVG-2000"])]
+            short += [f"## {fn}\n", to_markdown(d.round(3)), "\n"]
+    (out / "phase2_short.md").write_text("\n".join(short), encoding="utf-8")
     fig_robustness(out)
     return verdict
 
@@ -674,15 +729,15 @@ def main(cfg: dict, xie_path, out, res1="results/pseudobulk_counts", seeds=3, n_
     out, res1 = Path(out), Path(res1)
     out.mkdir(parents=True, exist_ok=True)
     rom = dict(components=[2, 5, 10, 20], hvg=cfg["rom"].get("hvg", 2000), scale_clip=cfg["rom"].get("scale_clip", 10.0), min_cpm=1.0, min_frac=0.25)
-    todo = stages or ["holm", "age_prior", "converge", "periphery", "variants", "state", "reverse", "training", "followups", "summary"]
+    todo = stages or ["holm", "age_prior", "patient_table", "converge", "periphery", "variants", "state", "reverse", "training", "followups", "summary"]
     t0 = time.time()
     S = None
-    if set(todo) & {"age_prior", "variants", "state", "reverse", "training", "followups"}:
+    if set(todo) & {"age_prior", "patient_table", "variants", "state", "reverse", "training", "followups"}:
         S = M19.load_studies(cfg, xie_path)
     if n_jobs == -1:
         n_jobs = min(os.cpu_count() or 1, 6)                      # cada proceso carga matrices densas de ~100 MB y hace PCA: sin pasarse
     sd = list(range(seeds))
-    jobs = dict(holm=lambda: stage_holm(res1, out), age_prior=lambda: stage_age_prior(S, out), converge=lambda: stage_converge(res1, out),
+    jobs = dict(holm=lambda: stage_holm(res1, out), age_prior=lambda: stage_age_prior(S, out), patient_table=lambda: stage_patient_table(S, res1, out), converge=lambda: stage_converge(res1, out),
                 periphery=lambda: stage_periphery(res1, out), variants=lambda: stage_variants(S, rom, out, sd, force),
                 state=lambda: stage_state(S, rom, out, sd[:2]), reverse=lambda: stage_reverse(S, rom, out, sd),
                 training=lambda: stage_training(S, rom, out, n_draws, n_jobs), followups=lambda: stage_followups(S, rom, out, sd),

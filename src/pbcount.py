@@ -234,15 +234,17 @@ def fold_features(Ctr, Cte, rom: dict):
     return reps.transform(Ltr), reps.transform(Lte)
 
 
-def fit_lr(Ztr, y, w):
+def fit_lr(Ztr, y, w, C: float = 1.0):
     assert len(set(y)) == 2, "el entrenamiento solo tiene una clase"
-    return LogisticRegression(class_weight="balanced", solver="liblinear", C=1.0).fit(Ztr, y, sample_weight=w)  # penalización L2 (por defecto)
+    return LogisticRegression(class_weight="balanced", solver="liblinear", C=C).fit(Ztr, y, sample_weight=w)  # penalización L2 (por defecto)
 
 
 def fit_model(Ztr, y, w, model: str = "lr"):
     """lr = regresión logística (principal); rf = random forest (solo sensibilidad)."""
     if model == "lr":
         return fit_lr(Ztr, y, w)
+    if model.startswith("lr:"):                         # lr:<C>, solo sensibilidad a la regularización
+        return fit_lr(Ztr, y, w, C=float(model[3:]))
     if model == "rf":
         from sklearn.ensemble import RandomForestClassifier
         assert len(set(y)) == 2, "el entrenamiento solo tiene una clase"
