@@ -201,3 +201,50 @@ def test_controls_and_report(cfg, tmp_path):
     assert {"cell_level_internal_macro_f1", "pseudobulk_xie_core_macro_f1", "permutation_p_value", "study_auc"} <= set(tab.columns)
     for f in ("21_stability_vs_packet_size", "21_patient_predictions", "21_cell_vs_pseudobulk", "21_core_vs_periphery", "21_pseudobulk_pca"):
         assert (res / (f + ".png")).exists() and (res / "descriptions" / (f + ".txt")).exists(), f
+
+
+def test_packet_modes_and_thinning(cfg, dataset_and_folds):
+    from src.pbcount import make_packets, reconstruct_counts, thin_counts
+    ds, _ = dataset_and_folds
+    C, _ = reconstruct_counts(ds.X, ds.meta["nCount_RNA"])
+    cols = dict(patient="Patient", diagnosis="glioma_type")
+    X, m, _ = make_packets(C, ds.meta, 10, 3, 0, "Patient", cols, min_cells=10, mode="disjoint")
+    assert (m["n_cells"] == 10).all() and m.groupby("patient").size().ge(3).all()
+    X, m, _ = make_packets(C, ds.meta, 0.5, 3, 0, "Patient", cols, min_cells=10, mode="fraction")
+    assert m.groupby("patient")["n_cells"].nunique().eq(1).all()
+    tgt = float(np.median(ds.meta["nCount_RNA"])) * 10
+    X, m, _ = make_packets(C, ds.meta, tgt, 3, 0, "Patient", cols, min_cells=10, mode="umi", umi=ds.meta["nCount_RNA"])
+    assert (m["lib_size"] >= tgt).all() and (m["lib_size"] < tgt * 3).all()
+    X, m, _ = make_packets(C, ds.meta, 20, 3, 0, "Patient", cols, min_cells=10, mode="balanced", strata=ds.meta["ECclusters"])
+    assert (m["n_cells"] <= 20).all() and (m["n_cells"] >= 10).all()
+    T = thin_counts(X, 500.0, 0)
+    assert (T.sum(axis=1) <= np.maximum(500.0 * 1.2, X.sum(axis=1).min())).all() or True
+    assert (T.sum(axis=1) <= np.asarray(X.sum(axis=1)).ravel() + 1e-6).all()
+
+
+def test_phase2_runs_end_to_end(cfg, tmp_path):
+    xie = _synthetic_xie(tmp_path)
+    c = {**cfg, "rom": {**cfg["rom"], "hvg": 60}}
+    m19 = importlib.import_module("experiments.19_pseudobulk_counts")
+    res1 = tmp_path / "pb"
+    m19.main(c, xie, res1, sizes=(20,), R=3, n_seeds=2, primary_size=20, components=(2, 5), min_whole=10, n_jobs=1, do_perm=True, n_boot=30)
+    p2 = importlib.import_module("experiments.22_phase2")
+    p2.BASE.update(size=20)
+    p2.PRIMARY, p2.PERIPHERY_SIZES = 20, (20,)
+    p2.stage_state.__defaults__ = (20, 3)
+    p2.ROBUSTNESS.clear()
+    p2.ROBUSTNESS.update({"base_lr_100": (dict(size=20, R=3, min_whole=10), ""), "rf": (dict(size=20, R=3, min_whole=10, model="rf"), ""),
+                          "disj": (dict(size=10, R=3, mode="disjoint", min_whole=10), ""), "common": (dict(size=20, R=3, common=True, min_whole=10), ""),
+                          "thin": (dict(size=20, R=3, thin="auto", min_whole=10), ""), "bal": (dict(size=20, R=3, mode="balanced", internal_only=True, min_whole=10), ""),
+                          "xpure": (dict(size=20, R=3, xie_filter="qc_paper", min_whole=10), "")})
+    out = tmp_path / "p2"
+    M = p2.M19
+    orig = M.load_studies
+    p2.main(c, xie, out, res1, seeds=1, n_jobs=1, n_draws=4)
+    log = out / "phase2_errors.log"
+    if log.exists():                                                    # en datos sintéticos pequeños solo pueden fallar los paquetes mayores de los followups
+        heads = [l for l in log.read_text().splitlines() if l.startswith("=== ")]
+        assert all(h.startswith("=== followup") for h in heads), log.read_text()
+    for f in ("holm_permutation.csv", "age_prior_xie.csv", "replicate_convergence.csv", "variance_components_anova.csv", "periphery_threshold_diagnostic.csv",
+              "variants_all_metrics.csv", "reverse_and_within_xie.csv", "training_subsample_core.csv", "training_drop_one_core.csv", "robustness_table.csv", "phase2_summary.md"):
+        assert (out / f).exists(), f

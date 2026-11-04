@@ -399,7 +399,7 @@ Remuestreo de pacientes con reemplazo (5.000 veces, manteniendo el nº por clase
 ### 4.11 Pseudobulks de conteos crudos (protocolo de los coautores, fase 1; `results/pseudobulk_counts`)
 Configuración fijada de antemano: paquetes de 100 células, media de probabilidades por paciente, Xie `core` como validación externa principal, 5 semillas maestras. Los demás tamaños son sensibilidad. (Que el `core` sea el análisis principal viene de la guía de los coautores, pero ya habíamos visto que funcionaba a nivel de célula, así que no es una prueba ciega.)
 
-**Auditoría de Xie** (`xie_audit.csv`): sin incidencias en el mapeo muestra-paciente; profundidad muy desigual (mediana de UMIs por muestra de 1.262 a 6.428); la anotación endotelial publicada no está en los datos y el recuento del artículo no está verificado, así que no se puede comprobar la selección de endotelio. N036 tiene la puntuación mural más alta (0,66) y N045 la glial (0,47). No factibles con 500 células: GBM1 (264 células) en Wälchli y N027 (465) en Xie.
+**Auditoría de Xie** (`xie_audit.csv`; comparada con el artículo): sin incidencias en el mapeo muestra-paciente; profundidad muy desigual (mediana de UMIs por muestra de 1.262 a 6.428); la anotación endotelial publicada no está en los datos, pero el artículo da totales: **103.230 células tras el control de calidad, de ellas 57.324 endoteliales** (control de calidad: < 200 genes, > 10 % de genes mitocondriales y dobletes con DoubletFinder). Nuestra preparación carga **198.445 células** (solo filtro de 200 genes, sin filtro mitocondrial ni de dobletes) y selecciona **106.399 como endoteliales, casi el doble del artículo**. La selección por marcadores es por tanto mucho más laxa que la publicada y puede incluir células de baja calidad o no endoteliales; la fase 2 prueba filtros más estrictos (4.12). Pacientes de Xie: 3 LGG con mutación de IDH (edad media 49,3) y 4 GBM sin mutación de IDH (edad media 61,3); las edades individuales están en la Tabla S1A del artículo, que no tenemos. N036 tiene la puntuación mural más alta (0,66) y N045 la glial (0,47). No factibles con 500 células: GBM1 (264 células) en Wälchli y N027 (465) en Xie.
 
 **Xie, modelo congelado (macro-F1 medio de 5 semillas)**
 
@@ -461,6 +461,17 @@ Configuración fijada de antemano: paquetes de 100 células, media de probabilid
 | Todos los genes | 0,707 | 0,807 | 0,824 | 0,966 | 0,536 | 0,300 |
 
 **Resumen:** los pseudobulks mejoran la validación interna de forma modesta y, sobre todo, hacen que `core` de Xie se separe sin error con cinco de las seis representaciones y todos los tamaños. No resuelven el efecto de estudio ni la periferia. Siguen sin descartarse la edad y el desplazamiento de cohorte como explicaciones.
+
+### 4.12 Fase 2: robustez del resultado `core` (`experiments.22_phase2`; código listo, resultados pendientes)
+Todo reanudable, con veredicto automático en `results/pseudobulk_phase2/phase2_summary.md`. Etapas y qué pregunta responde cada una:
+- **Holm** entre las permutaciones de la fase 1; **convergencia de réplicas** (cuántos paquetes hacen falta) y **componentes de varianza** por ANOVA (no es un modelo mixto).
+- **Edad:** qué predeciría un modelo solo de edad entrenado con Wälchli a las edades medias publicadas de Xie (LGG 49,3; GBM 61,3).
+- **Periferia:** si el fallo es un desplazamiento constante de las probabilidades (AUROC, centrado sin etiquetas, umbral óptimo a posteriori; solo diagnóstico).
+- **Variantes** (3 semillas): random forest; paquetes disjuntos (50 y 100); por fracción de células (10, 25, 50 %); igualados por UMI (~150.000); conteos adelgazados a igual profundidad; solo genes comunes; equilibrado por estado endotelial (interno); Xie con filtro mitocondrial del artículo y Xie solo con células claramente endoteliales (y la combinación más estricta); y quitar los genes que más distinguen Wälchli de Xie (500, 2.000, 5.000, 10.000), con parada y refinamiento automáticos si el resultado se rompe.
+- **Estados endoteliales:** paquetes de un solo estado (`ECclusters`), solo dentro de Wälchli.
+- **Inversa y dentro de Xie:** entrenar con Xie y predecir Wälchli; señal dentro de Xie dejando un paciente fuera.
+- **Entrenamiento:** 100 subconjuntos de 10 pacientes de Wälchli (6 GBM + 4 LGG) y quitar un paciente de entrenamiento cada vez.
+- **Condicionadas:** si una variante deja el `core` por debajo de 0,9, se repite con paquetes de 250 y 500.
 
 ---
 
@@ -536,6 +547,9 @@ Configuraciones: `demo` (comprueba que todo funciona; no sacar conclusiones), `m
 .\.venv\Scripts\python.exe -m experiments.19_pseudobulk_counts --config configs/full.yaml
 .\.venv\Scripts\python.exe -m experiments.20_pseudobulk_controls --config configs/full.yaml
 .\.venv\Scripts\python.exe -m experiments.21_pseudobulk_report --config configs/full.yaml
+
+# fase 2 de los pseudobulks de conteos: robustez (reanudable; tarda horas)
+.\.venv\Scripts\python.exe -m experiments.22_phase2 --config configs/full.yaml
 
 # pseudobulks promediados (secundario; reanudable; --quick = prueba rápida)
 .\.venv\Scripts\python.exe -m experiments.17_pseudobulk --config configs/full.yaml --xie data/xie/xie_endothelial.h5ad --out results/pseudobulk

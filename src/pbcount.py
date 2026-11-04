@@ -48,28 +48,75 @@ def age_from_obs(obs: pd.DataFrame) -> np.ndarray:
 # --------------------------------------------------------------------------- paquetes
 
 
-def make_packets(C, obs: pd.DataFrame, size, R: int, seed: int, unit_col: str, cols: dict, comp_col=None, min_cells: int = 100):
-    """Paquetes aleatorios de `size` células dentro de cada unidad (paciente o muestra), SIN reemplazo dentro del paquete; los
-    paquetes de una misma unidad pueden solaparse. size='whole' = un paquete con todas las células (mínimo min_cells).
-    `cols` mapea nombre -> columna de obs (patient, diagnosis, sample, site, age...). Devuelve (X, meta, no_factibles)."""
+def make_packets(C, obs: pd.DataFrame, size, R: int, seed: int, unit_col: str, cols: dict, comp_col=None, min_cells: int = 100,
+                 mode: str = "random", strata=None, umi=None, max_disjoint: int = 40):
+    """Paquetes de células dentro de cada unidad (paciente o muestra). `cols` mapea nombre -> columna de obs.
+    Modos (size significa cosas distintas):
+      random   (por defecto) `size` células SIN reemplazo dentro del paquete; R paquetes por unidad que pueden solaparse. size='whole' = todas (mínimo min_cells).
+      disjoint paquetes de `size` células SIN solaparse (hasta max_disjoint por unidad; mínimo 3).
+      fraction `size` es la fracción (0-1) de las células de la unidad que entra en cada paquete (mínimo 30 células); R paquetes.
+      umi      `size` es el nº de UMIs objetivo: se añaden células al azar hasta alcanzar ese total (iguala profundidad, no nº de células).
+      balanced `size` células repartidas a partes iguales entre los estratos de `strata` (vector por célula); R paquetes.
+    Devuelve (X, meta, no_factibles)."""
     obs = obs.reset_index(drop=True)
     uvals = obs[unit_col].astype(str).to_numpy()
     units = sorted(set(uvals))
+    if mode in ("umi",):
+        assert umi is not None, "el modo umi necesita el total de UMIs por célula"
+        umi = np.asarray(umi, dtype=np.float64)
+    if mode == "balanced":
+        assert strata is not None, "el modo balanced necesita estratos"
+        strata = np.asarray(strata).astype(str)
+        levels = sorted(set(strata))
     if comp_col:
         cl = pd.Categorical(obs[comp_col].astype(str))
         onehot = sp.csr_matrix((np.ones(len(obs), dtype=np.float32), (np.arange(len(obs)), cl.codes)), shape=(len(obs), len(cl.categories)))
+    skey = int(round(float(size) * 1000)) if mode in ("fraction",) else (int(size) if size != "whole" else 0)
     packs, metas, infeasible = [], [], []
     for ui, u in enumerate(units):
         idx = np.flatnonzero(uvals == u)
-        need = min_cells if size == "whole" else int(size)
-        if len(idx) < need:
-            infeasible.append((u, len(idx)))
-            continue
+        rng = np.random.default_rng([int(seed), skey, ui])
         if size == "whole":
+            if len(idx) < min_cells:
+                infeasible.append((u, len(idx)))
+                continue
             sets = [idx]
-        else:
-            rng = np.random.default_rng([int(seed), int(size), ui])
+        elif mode == "random":
+            if len(idx) < int(size):
+                infeasible.append((u, len(idx)))
+                continue
             sets = [np.sort(rng.choice(idx, size=int(size), replace=False)) for _ in range(R)]
+        elif mode == "disjoint":
+            k = len(idx) // int(size)
+            if k < 3:
+                infeasible.append((u, len(idx)))
+                continue
+            perm = rng.permutation(idx)
+            sets = [np.sort(perm[i * int(size): (i + 1) * int(size)]) for i in range(min(k, max_disjoint))]
+        elif mode == "fraction":
+            n = int(np.ceil(float(size) * len(idx)))
+            if n < 30:
+                infeasible.append((u, len(idx)))
+                continue
+            sets = [np.sort(rng.choice(idx, size=n, replace=False)) for _ in range(R)]
+        elif mode == "umi":
+            if umi[idx].sum() < float(size):
+                infeasible.append((u, len(idx)))
+                continue
+            sets = []
+            for _ in range(R):
+                perm = rng.permutation(idx)
+                n = int(np.searchsorted(np.cumsum(umi[perm]), float(size))) + 1
+                sets.append(np.sort(perm[:n]))
+        elif mode == "balanced":
+            per = int(size) // len(levels)
+            by = {l: idx[strata[idx] == l] for l in levels}
+            if sum(min(per, len(v)) for v in by.values()) < int(size) // 2:
+                infeasible.append((u, len(idx)))
+                continue
+            sets = [np.sort(np.concatenate([rng.choice(v, size=min(per, len(v)), replace=False) for v in by.values() if len(v)])) for _ in range(R)]
+        else:
+            raise ValueError(f"modo desconocido: {mode}")
         for r, p in enumerate(sets):
             packs.append(p)
             m = {k: obs[c].iloc[idx[0]] for k, c in cols.items()}
@@ -87,6 +134,17 @@ def make_packets(C, obs: pd.DataFrame, size, R: int, seed: int, unit_col: str, c
         for j, name in enumerate(cl.categories):
             meta[f"comp_{name}"] = comp[:, j]
     return X, meta, infeasible
+
+
+def thin_counts(X, target: float, seed: int = 0):
+    """Adelgazamiento binomial: cada fila con más de `target` conteos se reduce al azar a ~target (iguala la profundidad). Devuelve denso float32."""
+    X = np.asarray(X.todense() if sp.issparse(X) else X)
+    rng = np.random.default_rng(seed)
+    lib = X.sum(axis=1)
+    out = np.empty_like(X, dtype=np.float32)
+    for i in range(X.shape[0]):
+        out[i] = X[i] if lib[i] <= target else rng.binomial(X[i].astype(np.int64), target / lib[i])
+    return out
 
 
 # --------------------------------------------------------------------------- normalización TMM + log-CPM
@@ -181,6 +239,17 @@ def fit_lr(Ztr, y, w):
     return LogisticRegression(class_weight="balanced", solver="liblinear", C=1.0).fit(Ztr, y, sample_weight=w)  # penalización L2 (por defecto)
 
 
+def fit_model(Ztr, y, w, model: str = "lr"):
+    """lr = regresión logística (principal); rf = random forest (solo sensibilidad)."""
+    if model == "lr":
+        return fit_lr(Ztr, y, w)
+    if model == "rf":
+        from sklearn.ensemble import RandomForestClassifier
+        assert len(set(y)) == 2, "el entrenamiento solo tiene una clase"
+        return RandomForestClassifier(n_estimators=300, class_weight="balanced_subsample", min_samples_leaf=2, random_state=0, n_jobs=1).fit(Ztr, y, sample_weight=w)
+    raise ValueError(model)
+
+
 def packet_weights(patients) -> np.ndarray:
     """Peso 1/R_p: cada paciente suma 1 en el entrenamiento aunque tenga distinto número de paquetes."""
     s = pd.Series(patients)
@@ -192,12 +261,12 @@ def _extra_block(E_tr, E_te):
     return (E_tr - mu) / sd, (E_te - mu) / sd
 
 
-def predict_block(Ctr, ytr, ptr, Cte, rom, mode="expr", Etr=None, Ete=None) -> dict:
+def predict_block(Ctr, ytr, ptr, Cte, rom, mode="expr", Etr=None, Ete=None, model: str = "lr") -> dict:
     """P(clase positiva) de los paquetes de prueba por representación. mode: expr | extra (solo Etr/Ete) | both (expresión + Etr)."""
     w = packet_weights(ptr)
     if mode == "extra":
         a, b = _extra_block(Etr, Ete)
-        return {"extra": fit_lr(a, ytr, w).predict_proba(b)[:, 1]}
+        return {"extra": fit_model(a, ytr, w, model).predict_proba(b)[:, 1]}
     Ztr, Zte = fold_features(Ctr, Cte, rom)
     out = {}
     for name in Ztr:
@@ -205,11 +274,11 @@ def predict_block(Ctr, ytr, ptr, Cte, rom, mode="expr", Etr=None, Ete=None) -> d
         if mode == "both":
             ea, eb = _extra_block(Etr, Ete)
             A, B = np.hstack([A, ea]), np.hstack([B, eb])
-        out[name] = fit_lr(A, ytr, w).predict_proba(B)[:, 1]
+        out[name] = fit_model(A, ytr, w, model).predict_proba(B)[:, 1]
     return out
 
 
-def lopo(Xp, meta: pd.DataFrame, y, rom: dict, group: str = "patient", mode: str = "expr", extra=None, keep_cache: bool = False):
+def lopo(Xp, meta: pd.DataFrame, y, rom: dict, group: str = "patient", mode: str = "expr", extra=None, keep_cache: bool = False, model: str = "lr"):
     """Dejar un grupo (paciente) fuera. y: 1 = clase positiva. Devuelve la tabla por paquete (y la caché de características)."""
     C = np.asarray(Xp.todense(), dtype=np.float64) if sp.issparse(Xp) else np.asarray(Xp, dtype=np.float64)
     y = np.asarray(y, dtype=int)
@@ -225,7 +294,7 @@ def lopo(Xp, meta: pd.DataFrame, y, rom: dict, group: str = "patient", mode: str
             w = packet_weights(g[tr])
             pr = {n: fit_lr(Ztr[n], y[tr], w).predict_proba(Zte[n])[:, 1] for n in Ztr}
         else:
-            pr = predict_block(C[tr], y[tr], g[tr], C[te], rom, mode, Etr, Ete)
+            pr = predict_block(C[tr], y[tr], g[tr], C[te], rom, mode, Etr, Ete, model)
         for name, p in pr.items():
             rows.append(pd.DataFrame(dict(packet=np.flatnonzero(te), group=q, y=y[te], representation=name, p=p)))
     df = pd.concat(rows, ignore_index=True)
