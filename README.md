@@ -98,7 +98,28 @@ Decisiones fijadas **antes** de ver ningún resultado externo:
 - **Método:** dejar un paciente fuera sobre los 21 pacientes (14 + 7), con los 22.767 genes en común; mismas representaciones (PCA-2…50, HVG-2000) y modelos; con y sin regresión de profundidad; y un control que usa solo la profundidad.
 - **Gráficas:** puntos coloreados por estudio (y por tipo de glioma) en el espacio PCA-2 del modelo entrenado, con su frontera de decisión (`09`), en una PCA ajustada con ambos estudios (`10`), y capacidad de identificar el estudio por representación (`11`).
 
-### 3.6 Lo que se probó y se descartó
+### 3.6 Pseudobulks promediados (`experiments.17_pseudobulk`; exploratorio, secundario)
+Primera versión de la idea de los coautores: promediar paquetes de células del mismo paciente. Usa la media de la expresión log-normalizada (la regla 3 de la guía, marcada allí como solo exploratoria) y paquetes disjuntos (familia D). **Queda como análisis secundario; el principal es el protocolo de conteos de 3.7.** Código listo, sin ejecutar.
+- **Qué es un pseudobulk aquí:** media de la expresión log-normalizada (log1p de 10.000 por célula, que es lo que contienen ambos conjuntos) de un paquete de células elegidas al azar **dentro del mismo paciente** (en Xie, dentro de la misma muestra, para no mezclar núcleo y periferia). No se suman conteos crudos porque en Wälchli no los tenemos.
+- **Sin fugas:** los pseudobulks de un paciente van siempre juntos en el mismo pliegue (dejar un paciente fuera) y las métricas se calculan con cada paciente pesando igual y, además, con **una sola predicción por paciente** (columnas `*_patient`).
+- **Tres análisis:** (A) dentro de Wälchli; (B) entrenar con pseudobulks de Wälchli y aplicar a los de Xie (todo, solo `core`, solo periferia), sin reajustar nada; (C) diagnóstico de estudio: ¿se sigue identificando el estudio?
+- **Fijado de antemano:** análisis principal con paquetes de **50 células** y regresión de profundidad según `configs/full.yaml` (profundidad de un pseudobulk = media de la de sus células). Se informan también 25 y 100 células y sin regresión de profundidad, como secundarios. Cada configuración se repite con 5 particiones aleatorias de los paquetes y se informa media y desviación.
+- **Tope de entrenamiento:** el mismo presupuesto de células por paciente que a nivel de célula (1.000 células ≈ 20 pseudobulks de 50).
+
+### 3.7 Pseudobulks de conteos crudos (`experiments.18`-`21`, protocolo de los coautores)
+Sigue la guía de implementación de los coautores. **Código listo y probado con datos sintéticos; resultados pendientes de ejecutar** (sección 7).
+- **Conteos crudos:** ambos conjuntos solo traen la matriz log-normalizada, pero los conteos se reconstruyen exactos: `conteos = expm1(X) × nCount_RNA / 10.000`. Comprobado en los datos reales: desviación máxima al entero 0,003 (Wälchli) y 0,001 (Xie), mínimo no nulo 1,000. El código se detiene si no salen enteros.
+- **Auditoría de Xie** (`18_audit_xie`): tabla por muestra (diagnóstico, sitio, células antes y después del control de calidad, endoteliales seleccionadas, profundidad), marcadores endoteliales y puntuaciones de contaminación mural, inmune y glial. La anotación endotelial publicada no está en los datos descargados (columna vacía) y el recuento del artículo no se ha verificado.
+- **Pseudobulks** (`19`): un pseudobulk de Wälchli = un paciente; de Xie = una muestra (núcleo y periferia nunca se mezclan). Paquetes de **50, 100, 250 y 500 células** con 20 réplicas (sin reemplazo dentro del paquete; pueden solaparse entre réplicas), 5 semillas maestras, y el **espécimen completo** (mínimo 100 células) como referencia. Se suman los conteos.
+- **Pipeline ajustado solo con pacientes de entrenamiento:** filtro de genes (CPM > 1 en ≥ 25 % de los pseudobulks de entrenamiento), TMM frente a una referencia de entrenamiento, log2-CPM, escalado, HVG-2000 / PCA-2, 5, 10, 20 / todos los genes filtrados, y regresión logística (L2, balanceada, `liblinear`, C = 1) con peso 1/R por paciente. Random forest no se usa.
+- **Una probabilidad de GBM por paciente** = media de la de sus paquetes (la mediana y la media recortada se calculan también). Métricas por paciente: macro-F1, balanced accuracy, sensibilidad, especificidad, AUROC, AUPRC. Permutación exacta entre pacientes (3.003 asignaciones, ajustada por máximo entre representaciones PCA) y bootstrap de pacientes.
+- **Xie:** modelo congelado entrenado con los 14 pacientes de Wälchli; se informan núcleo (principal), periferia y todo (probabilidad del paciente = media de sus muestras). Se registran los pacientes disponibles en cada configuración (matriz de cobertura) y se repite con el mismo conjunto de pacientes para todos los tamaños.
+- **Controles** (`20`): clasificador de estudio (21 pacientes), de sitio dentro de Xie, solo edad, solo composición celular y su combinación con la expresión. Edad y composición solo en Wälchli.
+- **Informe** (`21`): tabla comparativa célula frente a pseudobulk y figuras con descripción.
+- **Fijado de antemano:** paquetes de 100 células, media de probabilidades, Xie núcleo como análisis externo principal, 5 semillas. Los demás tamaños son sensibilidad y se informan todos.
+- **No implementado todavía:** véase la sección 7.
+
+### 3.8 Lo que se probó y se descartó
 - **Renormalizar la matriz de Wälchli:** innecesario, ya viene normalizada.
 - **Etiqueta de localización:** descartada; el objetivo final es solo `glioma_type`.
 - **Permutación con "Todos los genes":** no se hizo; requiere matrices densas de 26.666 columnas y miles de ajustes.
@@ -399,7 +420,9 @@ Hecho: análisis `core` (4.7), periferia (4.7), revisión de C (4.4), PC1/PC2 y 
 
 1. **Metadatos clínicos de LGG1** (subtipo, localización, mutaciones): no están en el conjunto de datos (4.8). Pedirlos a la coautora o buscarlos en el artículo.
 2. **Separar edad y tipo de glioma:** con estos 14 pacientes no se puede (4.8); haría falta una cohorte con edades solapadas entre GBM y LGG.
-3. **Otro conjunto independiente** y, si es posible, anotación celular publicada de Xie para validar la selección de endotelio. Sería lo único que desempataría entre artefacto técnico y señal real; hoy no hay ninguno a mano y es posible que no exista.
+3. **Ejecutar y analizar los pseudobulks de conteos** (3.7): `18_audit_xie`, `19_pseudobulk_counts`, `20_pseudobulk_controls` y `21_pseudobulk_report`. Es la prioridad acordada con los coautores: aprovechar Xie al máximo antes de ampliar el análisis. `17_pseudobulk` (promedio de log-expresión) queda como secundario.
+   **De la guía, aún no implementado** (segunda fase, tras ver los resultados de la primera): familias de fracción, disjuntos, equilibrados por estado endotelial, específicos de estado y por UMI o genes detectados; DESeq2/VST (necesita R), mediana de expresión y muestreos estratificados; análisis de convergencia de réplicas y componentes de varianza con modelo mixto; corrección de Holm entre configuraciones; random forest como sensibilidad; anotación endotelial publicada de Xie (no está en los datos descargados).
+4. **Otro conjunto independiente, solo después de ver los pseudobulks:** Bejarano et al. (2025), *Single-cell atlas of endothelial and mural cells across primary and metastatic brain tumors*, Immunity 58, 1015-1032.e6 (propuesto por un coautor; no se ha revisado si trae GBM y LGG con etiqueta por paciente). Procesarlo cuesta tiempo (descarga, preparación, adaptación), así que se decide cuando se vea si el efecto de estudio sigue siendo tan fuerte con pseudobulks. Además, si es posible, anotación celular publicada de Xie para validar la selección de endotelio.
 
 ---
 
@@ -433,6 +456,15 @@ Configuraciones: `demo` (comprueba que todo funciona; no sacar conclusiones), `m
 .\.venv\Scripts\python.exe -m experiments.10_prepare_xie --folder "$([Environment]::GetFolderPath('Desktop'))\datos XIE" --reference-config configs/full.yaml --sites core --out data/xie_core
 .\.venv\Scripts\python.exe -m experiments.08_external --bundle models/full_tuned/bundle.joblib --external data/xie_core/xie_endothelial.h5ad --out results/external_xie_core
 
+# pseudobulks de conteos crudos (protocolo de los coautores; 19 es reanudable)
+.\.venv\Scripts\python.exe -m experiments.18_audit_xie
+.\.venv\Scripts\python.exe -m experiments.19_pseudobulk_counts --config configs/full.yaml
+.\.venv\Scripts\python.exe -m experiments.20_pseudobulk_controls --config configs/full.yaml
+.\.venv\Scripts\python.exe -m experiments.21_pseudobulk_report --config configs/full.yaml
+
+# pseudobulks promediados (secundario; reanudable; --quick = prueba rápida)
+.\.venv\Scripts\python.exe -m experiments.17_pseudobulk --config configs/full.yaml --xie data/xie/xie_endothelial.h5ad --out results/pseudobulk
+
 # solo muestras periféricas de Xie (exploratorio)
 .\.venv\Scripts\python.exe -m experiments.10_prepare_xie --folder "$([Environment]::GetFolderPath('Desktop'))\datos XIE" --reference-config configs/full.yaml --sites peripheral --out data/xie_periph
 .\.venv\Scripts\python.exe -m experiments.08_external --bundle models/full_tuned/bundle.joblib --external data/xie_periph/xie_endothelial.h5ad --out results/external_xie_periph
@@ -452,8 +484,6 @@ Configuraciones: `demo` (comprueba que todo funciona; no sacar conclusiones), `m
 Si el estudio externo no trae `nCount_RNA` / `nFeature_RNA` ni conteos crudos, el paquete con regresión de profundidad no se puede aplicar y hay que usar un paquete entrenado sin ella (`configs/full_noreg.yaml`). Los genes ausentes se tratan como 0 y el script avisa si faltan muchos genes variables. Si las etiquetas externas se llaman distinto, usar `--label-map "Glioblastoma=GBM,..."`.
 
 ### Archivos de resultados (`results/<modo>/`, no versionados)
-`01_cohort.png`, `02_pca_variance.png`, `03_confusion_*.png`, `04_components_vs_performance_*.png`, `05_per_patient_*.png`, `06_components_vs_performance_seeds_*.png`, `07_by_cluster_*.png`, `08_permutation_*.png`, `permutation_results_*.csv`, `results_*.csv`, `summary_*.md`, `summary.json`, `run_metadata.json`, `splits/`, `tuning/` (validación anidada). En `results/batch/`: `09_batch_model_space.png`, `10_batch_joint_pca.png`, `11_batch_domain_classifier.png`, `batch_domain_results.csv/.md`, `batch_domain_per_patient.csv`, `batch_pca_eta2.csv`, `batch_model_space_summary.csv`. Además: `results/pc_meaning/` (`12_pc_by_patient.png`, `patients_metadata_pcs.csv`, `pc_correlations.csv`), `results/bootstrap/` (`13_bootstrap_ci.png`, `bootstrap_ci.csv`), `results/external_xie_core/`, `results/external_xie_aligned/`, `results/within_xie/`.
+`01_cohort.png`, `02_pca_variance.png`, `03_confusion_*.png`, `04_components_vs_performance_*.png`, `05_per_patient_*.png`, `06_components_vs_performance_seeds_*.png`, `07_by_cluster_*.png`, `08_permutation_*.png`, `permutation_results_*.csv`, `results_*.csv`, `summary_*.md`, `summary.json`, `run_metadata.json`, `splits/`, `tuning/` (validación anidada). En `results/batch/`: `09_batch_model_space.png`, `10_batch_joint_pca.png`, `11_batch_domain_classifier.png`, `batch_domain_results.csv/.md`, `batch_domain_per_patient.csv`, `batch_pca_eta2.csv`, `batch_model_space_summary.csv`. Además: `results/pc_meaning/` (`12_pc_by_patient.png`, `patients_metadata_pcs.csv`, `pc_correlations.csv`), `results/bootstrap/` (`13_bootstrap_ci.png`, `bootstrap_ci.csv`), `results/external_xie_core/`, `results/external_xie_aligned/`, `results/within_xie/`, `results/pseudobulk/` (promediados: `17_pseudobulk.png`, `pseudobulk_*_summary.csv/.md`, `runs/`) y `results/pseudobulk_counts/` (conteos: `xie_audit.csv`, `pseudobulk_configuration_grid.csv`, `pseudobulk_seed_sensitivity.csv`, `internal_patient_predictions.csv`, `xie_core_predictions.csv`, `xie_periphery_predictions.csv`, `packet_stability_results.csv/_cohort.csv`, `pseudobulk_coverage_matrix.csv`, `permutation_results.csv`, `patient_bootstrap_results.csv`, `study_/site_classifier_results.csv`, `age_only_results.csv`, `composition_only_results.csv`, `comparison_cell_vs_pseudobulk.csv/.md`, figuras `21_*.png`, `run_metadata.json`).
 
 **Descripciones de las gráficas:** cada `.png` tiene un `.txt` con el mismo nombre en la carpeta `descriptions/` de su resultado (p. ej. `results/full/descriptions/01_cohort.txt`). Explica qué expresa la gráfica y da sus cifras clave, calculadas de los propios datos. Se generan al crear la figura y se regeneran con `experiments.replot`.
-
-Tiempos de referencia en el PC de Gabi: una ejecución completa dejando-un-paciente-fuera, unos 38 minutos; la permutación exacta de los PCA, unos 15 minutos; las 10 semillas, unas 6 horas.

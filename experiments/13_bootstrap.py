@@ -49,6 +49,9 @@ DEFAULT_STUDIES = {
     "Dentro de Xie (exploratorio)": "results/within_xie/results_per_patient_within_xie.csv",
     "Xie alineado sin sus células (exploratorio)": "results/external_xie_aligned/results_per_patient_external_aligned_loo.csv",
     "Xie solo periferia (exploratorio)": "results/external_xie_periph/results_per_patient_external.csv",
+    "Pseudobulks dentro de Walchli (tamaño 50)": "results/pseudobulk/results_per_patient_pb_within.csv",
+    "Pseudobulks en Xie, todo (tamaño 50)": "results/pseudobulk/results_per_patient_pb_external_todo.csv",
+    "Pseudobulks en Xie, core (tamaño 50)": "results/pseudobulk/results_per_patient_pb_external_core.csv",
 }
 
 
