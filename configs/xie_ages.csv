@@ -1,0 +1,8 @@
+patient,paper_patient_number,histology,sex,age,recurrence,idh_status,codeletion_1p19q,location
+P027,1,LGG,Female,28,Primary,mutant,Non-codel,Bilateral frontal corpus callosum
+P036,2,GBM,Female,59,Primary,wild-type,Non-codel,Bilateral frontal lobes
+P037,3,LGG,Male,40,Primary,mutant,NA,Right temporal lobe
+P043,4,LGG,Female,48,Primary,mutant,NA,Left temporal lobe
+P038,5,GBM,Male,56,Primary,wild-type,Non-codel,"Left temporal occipital lobe, left posterior horn of ventricle"
+P045,6,GBM,Female,60,Primary,wild-type,Non-codel,Right temporal lobe
+P046,7,GBM,Female,70,Primary,wild-type,Non-codel,Left frontal lobe

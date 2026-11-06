@@ -248,3 +248,49 @@ def test_phase2_runs_end_to_end(cfg, tmp_path):
     for f in ("holm_permutation.csv", "age_prior_xie.csv", "replicate_convergence.csv", "variance_components_anova.csv", "periphery_threshold_diagnostic.csv",
               "variants_all_metrics.csv", "reverse_and_within_xie.csv", "training_subsample_core.csv", "training_drop_one_core.csv", "robustness_table.csv", "phase2_summary.md"):
         assert (out / f).exists(), f
+
+
+def test_deseq_vst_uses_training_reference_only():
+    from src.pbcount import DESeqVST
+    rng = np.random.default_rng(0)
+    mu = rng.gamma(2.0, 30.0, 300)
+    depth = rng.uniform(0.5, 2.0, 40)
+    C = rng.poisson(np.outer(depth, mu) * rng.gamma(20, 1 / 20, (40, 300)))
+    d = DESeqVST().fit(C[:30])
+    Z = d.transform(C)
+    assert Z.shape[0] == 40 and np.isfinite(Z).all()
+    d2 = DESeqVST().fit(C[:30])                                   # la transformación de las 10 de prueba no depende de ellas
+    assert np.allclose(d2.transform(C[30:]), Z[30:], atol=1e-6)
+    # profundidad no relacionada con la señal tras normalizar: la media por muestra apenas depende de la profundidad
+    assert abs(np.corrcoef(Z.mean(axis=1), depth)[0, 1]) < 0.5
+    # la normalización por tamaño elimina la escala global de una muestra: multiplicar todos los conteos por 4 no cambia nada
+    m = d.transform(np.vstack([C[0], C[0] * 4]))
+    assert np.allclose(m[0], m[1], atol=1e-3)
+    # subir solo la mitad de los genes sí sube la media transformada de esos genes
+    up = C[0].copy().astype(float)
+    up[:150] *= 4
+    z0, z1 = d.transform(C[:1])[0], d.transform(up[None])[0]
+    kk = d.keep[:150]
+    assert z1[:kk.sum()].mean() > z0[:kk.sum()].mean()
+
+
+def test_exact_age_permutation_and_published_filter(tmp_path):
+    p2 = importlib.import_module("experiments.22_phase2")
+    y = np.array([0, 0, 0, 1, 1, 1])
+    age = np.array([28, 40, 48, 56, 60, 70])
+    assert p2._auc(y, age) == 1.0
+    assert abs(p2._exact_p_auc(y, age, 1.0) - 1 / 20) < 1e-12              # 3 contra 3: p mínimo 0,05
+    y7 = np.array([0, 0, 0, 1, 1, 1, 1])
+    assert abs(p2._exact_p_auc(y7, np.array([28, 40, 48, 56, 59, 60, 70]), 1.0) - 1 / 35) < 1e-12
+    # filtro por recuento publicado: exactamente N células por muestra, las de mayor margen endotelial
+    import scipy.sparse as sp
+    rng = np.random.default_rng(0)
+    genes = ["PECAM1", "CLDN5", "VWF", "FLT1", "EGFL7", "ESAM", "PDGFRB", "RGS5", "PTPRC", "GFAP", "MT-CO1", "A", "B"]
+    C = sp.csr_matrix(rng.poisson(3, (300, len(genes))).astype(np.float32))
+    ox = pd.DataFrame(dict(sample=np.repeat(["N027", "T027", "N036"], 100)))
+    pub = tmp_path / "pub.csv"
+    pd.DataFrame(dict(sample=["N027", "T027", "N036"], endothelial_published=[10, 30, 500])).to_csv(pub, index=False)
+    p2.PUB_CSV = str(pub)
+    p2._MASKS.clear()
+    k = p2.xie_mask((None, None, None, C, ox, np.array(genes)), "pub")
+    assert k[:100].sum() <= 10 and k[100:200].sum() <= 30 and k[200:].sum() <= 100

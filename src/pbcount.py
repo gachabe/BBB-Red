@@ -198,6 +198,49 @@ class TMM:
         return np.log2((Ck + pr[:, None]) / (eff + 2 * pr)[:, None] * 1e6).astype(np.float32)
 
 
+class DESeqVST:
+    """Alternativa a TMM para sensibilidad (aproximación en Python de DESeq2): mismo filtro de genes que TMM; factores de tamaño por mediana de cocientes
+    frente a la media geométrica de los pseudobulks de ENTRENAMIENTO (los de prueba usan esa misma referencia, sin reajustarla); tendencia de dispersión
+    paramétrica a(mu) = a0 + a1/mu por mínimos cuadrados no negativos sobre las dispersiones por gen (momentos) y transformación estabilizadora de
+    varianza en forma cerrada de DESeq2, congelada con el entrenamiento. No es idéntico a DESeq2 (que estima la dispersión por máxima verosimilitud)."""
+
+    def __init__(self, min_cpm: float = 1.0, min_frac: float = 0.25):
+        self.min_cpm, self.min_frac = min_cpm, min_frac
+
+    def _sf(self, Ck):
+        ok = np.isfinite(self.logg)
+        out = np.empty(len(Ck))
+        for i in range(len(Ck)):
+            pos = ok & (Ck[i] > 0)
+            out[i] = np.exp(np.median(np.log(Ck[i][pos]) - self.logg[pos])) if pos.sum() >= 5 else 1.0
+        return out
+
+    def fit(self, C):
+        from scipy.optimize import nnls
+        C = np.asarray(C, dtype=np.float64)
+        cpm = C / C.sum(axis=1, keepdims=True) * 1e6
+        self.keep = (cpm > self.min_cpm).mean(axis=0) >= self.min_frac
+        assert self.keep.sum() >= 10, "el filtro de genes deja menos de 10 genes"
+        Ck = C[:, self.keep]
+        with np.errstate(divide="ignore"):
+            lg = np.log(Ck)
+        self.logg = np.where(np.isfinite(lg).all(axis=0), lg.mean(axis=0), -np.inf)   # solo genes con conteo > 0 en todo el entrenamiento
+        q = Ck / self._sf(Ck)[:, None]
+        mu, var = q.mean(axis=0), q.var(axis=0, ddof=1)
+        ok = mu >= 1.0
+        a = np.maximum((var[ok] - mu[ok]) / mu[ok] ** 2, 0.0)
+        X = np.c_[np.ones(ok.sum()), 1.0 / mu[ok]]
+        coef, _ = nnls(X, a)
+        self.a0, self.a1 = max(float(coef[0]), 1e-4), max(float(coef[1]), 1e-4)
+        return self
+
+    def transform(self, C):
+        Ck = np.asarray(C, dtype=np.float64)[:, self.keep]
+        q = Ck / self._sf(Ck)[:, None]
+        a0, a1 = self.a0, self.a1
+        return (np.log((1 + a1 + 2 * a0 * q + 2 * np.sqrt(a0 * q * (1 + a1 + a0 * q))) / (4 * a0)) / np.log(2)).astype(np.float32)
+
+
 class DenseReps:
     """Escalado de genes, HVG y PCA con medias/desviaciones de entrenamiento. Representaciones: PCA-r, HVG-n y 'All genes' (todos los filtrados)."""
 
@@ -228,7 +271,8 @@ class DenseReps:
 
 def fold_features(Ctr, Cte, rom: dict):
     """Normalización y representaciones ajustadas con entrenamiento; devuelve (Ztr, Zte) como dict por representación."""
-    tmm = TMM(rom.get("min_cpm", 1.0), rom.get("min_frac", 0.25)).fit(Ctr)
+    norm = DESeqVST if rom.get("norm", "tmm") == "deseq" else TMM
+    tmm = norm(rom.get("min_cpm", 1.0), rom.get("min_frac", 0.25)).fit(Ctr)
     Ltr, Lte = tmm.transform(Ctr), tmm.transform(Cte)
     reps = DenseReps(rom["components"], rom.get("hvg", 2000), rom.get("scale_clip", 10.0)).fit(Ltr)
     return reps.transform(Ltr), reps.transform(Lte)

@@ -1,0 +1,14 @@
+sample,patient,site,total_cells_published,endothelial_published
+N027,P027,peripheral,339,288
+T027,P027,core,14086,10599
+N036,P036,peripheral,13254,4642
+N037,P037,peripheral,11757,6433
+T037,P037,core,13075,8016
+N043,P043,peripheral,6344,2678
+T043,P043,core,5600,2607
+N038,P038,peripheral,9682,6417
+T038,P038,core,4684,1333
+N045,P045,peripheral,8747,5084
+T045,P045,core,4305,3222
+N046,P046,peripheral,6531,4268
+T046,P046,core,4826,1737
