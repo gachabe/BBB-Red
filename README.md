@@ -21,6 +21,7 @@ Pipeline reproducible: matriz de expresión (células endoteliales x genes) → 
 | **Validación externa, solo muestras `core` de Xie (6 pacientes; secundario fijado de antemano)** | **Mejor:** macro-F1 0,67-0,84 (PCA-5 con regresión logística 0,837 [0,700-0,946]); los 14 intervalos quedan por encima de 0,5, pero con 6 pacientes el bootstrap es poco fiable y el test exacto no puede bajar de p = 0,05 (4.9). Las células de muestras periféricas (`N`) empujan hacia LGG al menos en P045 y P046; P036 también se pierde, no está separado (4.7) |
 | **Pseudobulks de conteos crudos, Xie solo `core` (6 pacientes, 100 células, modelo congelado de Wälchli)** | **Macro-F1 1,000** con PCA-2, 5, 10, 20 y HVG-2000 (todos los genes: 0,966); igual con paquetes de 50 a 500 células y 5 semillas. Los 3 GBM salen con probabilidad ≥ 0,95 y los 3 LGG ≤ 0,001 (PCA-5). **Cautelas:** con 6 pacientes el test exacto no baja de p = 0,05 y el IC exacto del 100 % (6/6) es [0,54-1,00]; con el espécimen completo PCA-2 falla (0,33); mejora a nivel de célula (0,70-0,84) y supera a la validación interna, lo cual conviene mirar con lupa (4.11) |
 | **Fase 2: robustez del `core` (4.12, 4.13)** | **Aguanta:** modelo, forma del paquete, profundidad por adelgazamiento, genes comunes, quedarse con el mismo número de células endoteliales que el artículo (57.318, `core` 1,000), C de la regresión, otra agregación (promedio de log-expresión: 0,95-0,99) y quitar 15.000 genes de estudio no lo rompen (PCA-5 1,000 casi siempre); **lo rompe la regresión de profundidad** en la agregación por promedio y PCA-2 con 500 genes variables; se mantiene con subconjuntos de entrenamiento (84-91 %). La señal aparece también dentro de Xie (AUROC 1,000) y en sentido inverso (AUROC 0,90). **No descartado:** edad (las medias publicadas de Xie quedan a ambos lados de 0,5 en un modelo solo de edad; dentro de cada diagnóstico la predicción correlaciona con la edad, 0,4-0,5 en GBM, sin significación) y diferencias entre cohortes; la periferia es un desplazamiento constante (AUROC 0,8-0,9), no ausencia de señal |
+| **Edad en Xie (4.12, punto 4)** | **Confusión total:** LGG 28-48 años, GBM 56-70 (sin solape). Un modelo solo de edad da macro-F1 1,000 en `core`, periferia y conjunto completo, **igual o mejor que la expresión** (que en periferia y completo falla con umbral 0,5). La expresión no demuestra aportar más que la edad |
 | Pseudobulks, Xie completo y periferia | **No funciona con 100 células** (macro-F1 0,30-0,71; periferia 0,30, todo LGG), pero el AUROC de la periferia es 0,8-0,9: ordena bien y falla el umbral. Con paquetes de 250-500 células el Xie completo mejora (hasta 0,91-1,00 con PCA-2), sin contrastar (4.11) |
 | Pseudobulks, validación interna (Wälchli, 14 pacientes) | Macro-F1 0,65-0,81 (célula: 0,65-0,74). Permutación exacta ajustada: PCA-2 p = 0,016, PCA-10 y PCA-20 p = 0,036, PCA-5 p = 0,25. **PCA-2 no es robusto al tamaño del paquete** (AUROC 0,86 con 100 células, 0,71 con 250 y 0,46 con espécimen completo); HVG-2000 sí (macro-F1 0,78-0,85 y AUROC ≈ 0,9 en todos los tamaños). Bootstrap muy ancho (4.11) |
 | Efecto de estudio con pseudobulks | **Total:** AUROC 1,000 con todas las representaciones, incluso PCA-2. Agregar quita ruido de célula, no la diferencia entre estudios |
@@ -402,18 +403,24 @@ Configuración fijada de antemano: paquetes de 100 células, media de probabilid
 
 **Auditoría de Xie** (`xie_audit.csv`; comparada con el artículo): sin incidencias en el mapeo muestra-paciente; profundidad muy desigual (mediana de UMIs por muestra de 1.262 a 6.428); la anotación endotelial publicada no está en los datos, pero el artículo da totales: **103.230 células tras el control de calidad, de ellas 57.324 endoteliales** (control de calidad: < 200 genes, > 10 % de genes mitocondriales y dobletes con DoubletFinder). Nuestra preparación carga **198.445 células** (solo filtro de 200 genes, sin filtro mitocondrial ni de dobletes) y selecciona **106.399 como endoteliales, casi el doble del artículo**. La selección por marcadores es por tanto mucho más laxa que la publicada y puede incluir células de baja calidad o no endoteliales; la fase 2 prueba filtros más estrictos (4.12). Pacientes de Xie: 3 LGG con mutación de IDH y 4 GBM sin mutación de IDH. Edades individuales (Tabla S1A del artículo, `configs/xie_ages.csv`): LGG 28, 40 y 48 años (media 38,7); GBM 56, 59, 60 y 70 (media 61,3). **Ojo:** el texto del artículo daba una media LGG de 49,3, que no coincide con la tabla (38,7); usamos la tabla y conviene confirmarlo con el artículo. N036 tiene la puntuación mural más alta (0,66) y N045 la glial (0,47). No factibles con 500 células: GBM1 (264 células) en Wälchli y N027 (465) en Xie.
 
-**Xie: células publicadas** (Tablas S1B/S1C; `configs/xie_published_counts.csv`; la comparación con las nuestras sale de `xie_audit_vs_published.csv` tras ejecutar `xie_age`)
-| Muestra | Células (publicado) | Endoteliales (publicado) |
-|---|---|---|
-| N027 / T027 | 339 / 14.086 | 288 / 10.599 |
-| N036 | 13.254 | 4.642 |
-| N037 / T037 | 11.757 / 13.075 | 6.433 / 8.016 |
-| N043 / T043 | 6.344 / 5.600 | 2.678 / 2.607 |
-| N038 / T038 | 9.682 / 4.684 | 6.417 / 1.333 |
-| N045 / T045 | 8.747 / 4.305 | 5.084 / 3.222 |
-| N046 / T046 | 6.531 / 4.826 | 4.268 / 1.737 |
+**Xie: células publicadas frente a las nuestras** (Tablas S1B/S1C del artículo; `configs/xie_published_counts.csv`, `xie_audit_vs_published.csv`)
+| Muestra | Células cargadas / publicadas | Endoteliales seleccionadas / publicadas | Razón endoteliales |
+|---|---|---|---|
+| N027 | 691 / 339 | 465 / 288 | 1,61 |
+| T027 | 25.476 / 14.086 | 18.267 / 10.599 | 1,72 |
+| N036 | 30.818 / 13.254 | 11.596 / 4.642 | 2,50 |
+| N037 | 17.999 / 11.757 | 9.932 / 6.433 | 1,54 |
+| T037 | 24.568 / 13.075 | 14.168 / 8.016 | 1,77 |
+| N038 | 16.525 / 9.682 | 11.271 / 6.417 | 1,76 |
+| T038 | 8.342 / 4.684 | 2.236 / 1.333 | 1,68 |
+| N043 | 8.785 / 6.344 | 3.724 / 2.678 | 1,39 |
+| T043 | 8.408 / 5.600 | 3.768 / 2.607 | 1,45 |
+| N045 | 23.197 / 8.747 | 13.450 / 5.084 | 2,65 |
+| T045 | 8.487 / 4.305 | 6.225 / 3.222 | 1,93 |
+| N046 | 8.801 / 6.531 | 5.757 / 4.268 | 1,35 |
+| T046 | 16.348 / 4.826 | 5.540 / 1.737 | 3,19 |
 
-La variante `xie_pub` conserva en cada muestra solo tantas células (las de mayor puntuación endotelial) como endoteliales publicadas.
+Cargamos entre 1,35 y 3,39 veces las células publicadas por muestra (los datos descargados parecen no tener el control de calidad del artículo), y la selección por marcadores da entre 1,35 y 3,19 veces las endoteliales publicadas. La variante `xie_pub` (sección 4.12) iguala el número por muestra al publicado: 57.324 células, `core` 1,000 con PCA-2, PCA-5 y HVG-2000.
 
 **Xie, modelo congelado (macro-F1 medio de 5 semillas)**
 
@@ -517,11 +524,20 @@ Todo con paquetes de 100 células (salvo que se indique), 3 semillas, regresión
 | LGG (IDH mutado) | P027 (28), P037 (40), P043 (48) |
 | GBM (IDH nativo) | P038 (56), P036 (59), P045 (60), P046 (70) |
 
-- **Las edades separan los grupos de Xie sin solapamiento** (todo LGG < todo GBM), tanto en `core` (3 contra 3) como en periferia (3 contra 4). Un clasificador que solo ordene por edad iguala el resultado perfecto del `core`; el p exacto de ese acierto es el mismo que el nuestro (0,05 con 3 contra 3; 1/35 con 3 contra 4). **Con estos datos no se puede decir que la expresión aporte algo más que la edad.**
-- En Wälchli la edad tampoco está equilibrada (LGG 40,5; GBM 62,5). Dejando un paciente fuera (14 pacientes), el AUROC es: HVG-2000 solo edad 0,833, solo expresión 0,854, ambas 0,833; PCA-2 0,833 / 0,812 / 0,833. La expresión no mejora a la edad de forma apreciable (n = 14).
-- En la zona donde las edades de Wälchli se solapan entre clases (48-69 años, solo 6 pacientes) la edad rinde AUROC 0,0 y la expresión 0,6-0,8: apunta a que la expresión no es solo edad, pero con 6 pacientes es anecdótico.
-- Argumentos contra una lectura puramente de edad (sugerentes, no concluyentes): las probabilidades de expresión son extremas (≤ 0,001 frente a ≥ 0,95); la periferia de un mismo paciente (misma edad) se desplaza hacia LGG; dentro de cada clase el orden por edad no explica el orden por probabilidad. Ninguno sustituye a una cohorte con edades solapadas.
-- El análisis `xie_age` (`experiments/22_phase2.py`) deja las tablas `xie_age_baseline.csv`, `walchli_age_adjusted.csv` y `xie_ages_with_age_model.csv`; los números exactos de Xie se añadirán tras ejecutarlo.
+Resultados en Xie (`xie_age_baseline.csv`; modelo congelado de Wälchli; el modelo de edad es una regresión logística solo de edad entrenada con Wälchli, umbral 0,5):
+
+| Subconjunto | Edad sola (AUROC; p exacto) | Modelo de edad (macro-F1) | Expresión (AUROC; macro-F1 con HVG-2000) |
+|---|---|---|---|
+| `core` (6 pacientes) | 1,000; p = 0,050 | **1,000** | 1,000; 1,000 |
+| Periferia (7) | 1,000; p = 0,029 | **1,000** | 0,917; 0,300 (p = 0,057) |
+| Todo, por paciente (7) | 1,000; p = 0,029 | **1,000** | 1,000; 0,708 (todos los genes y PCA-2: 0,300) |
+
+- **La edad separa los grupos de Xie sin solapamiento y el modelo de edad iguala al de expresión en `core` y lo supera en periferia y en el conjunto completo** (macro-F1 1,000 frente a 0,30-0,71). Con estos datos no se puede decir que la expresión aporte algo que la edad no aporte; en la validación externa completa, la edad predice mejor.
+- En `core`, la probabilidad de GBM de la expresión correlaciona con la edad (Spearman 0,89-0,94), pero con el diagnóstico confundido eso no distingue nada.
+- **Wälchli (14 pacientes), AUROC dejando un paciente fuera** (`walchli_age_adjusted.csv`): edad sola 0,833; expresión 0,812-0,917 (todos los genes 0,917, HVG-2000 0,854, PCA-2 0,812, PCA-5 0,812); edad + expresión 0,79-0,83 (sin mejora sobre la edad sola).
+- **Zona de edades solapadas** (48-69 años: 5 GBM y **un solo LGG**): la edad rinde AUROC 0,0 y la expresión 0,4-0,8. Con un único LGG esto es anecdótico.
+- **Edad dentro de cada diagnóstico (Wälchli):** la correlación entre edad y probabilidad de GBM es positiva en ambos grupos (GBM 0,38-0,52; LGG 0,09-0,26) pero no significativa con n = 6-8 (p = 0,19-0,87); con los 14 juntos es 0,64-0,72 (p ≤ 0,015). **Por tanto no se puede descartar que parte de la predicción siga a la edad ni afirmar lo contrario.**
+- Lo único que apunta en contra de una lectura de edad pura: las probabilidades de expresión son extremas (≤ 0,001 frente a ≥ 0,95) y el tejido periférico de un mismo paciente (misma edad) se desplaza hacia LGG; esto último, sin embargo, empeora la expresión en periferia, no la explica la edad. Hace falta una cohorte con edades solapadas para separar ambos efectos.
 
 **5. Periferia: es un desplazamiento, no falta de señal**
 - Las probabilidades de la periferia quedan **3,9-9,2 unidades de logit por debajo** de las del núcleo del mismo paciente, en el 100 % de los pacientes (todas más cerca de LGG).
@@ -544,7 +560,7 @@ Todo con paquetes de 100 células (salvo que se indique), 3 semillas, regresión
 | 25 % más endotelial | 26.597 | 1,000 | 1,000 | 0,943 |
 
   El resultado `core` no depende de las células menos claramente endoteliales: con el mismo número de células que el artículo sigue separando sin error. (Es el mismo número, no el mismo conjunto de células: no tenemos su anotación.) Combinado con genes comunes y misma profundidad: 1,000.
-- **Normalización alternativa (pendiente de ejecutar):** variante `norm_deseq_vst`, aproximación en Python de la normalización de DESeq2 (factores de tamaño por mediana de cocientes frente a la media geométrica de los pseudobulks de entrenamiento y transformación estabilizadora de varianza con la tendencia de dispersión ajustada en entrenamiento y congelada), en lugar de TMM + log-CPM. Propuesta a raíz de MLSeq (paquete de R de clasificación de RNA-seq, que ofrece DESeq/VST y TMM/voom); a diferencia de su función `classify()`, que normaliza todo el conjunto de una vez, aquí la normalización se ajusta solo con el entrenamiento. No es idéntica a DESeq2.
+- **Normalización alternativa (`norm_deseq_vst`):** aproximación en Python de la normalización de DESeq2 (factores de tamaño por mediana de cocientes frente a la media geométrica de los pseudobulks de entrenamiento y transformación estabilizadora de varianza con la tendencia de dispersión ajustada en entrenamiento y congelada), en lugar de TMM + log-CPM. Propuesta a raíz de MLSeq (paquete de R de clasificación de RNA-seq que ofrece DESeq/VST y TMM/voom); a diferencia de su función `classify()`, que normaliza todo el conjunto de una vez, aquí la normalización se ajusta solo con el entrenamiento. **Resultado: `core` 1,000 con PCA-2, PCA-5 y HVG-2000; Xie completo 0,708 y periferia 0,300 (igual que TMM); validación interna HVG-2000 0,802 (TMM 0,782).** La normalización no cambia nada de lo anterior. No es idéntica a DESeq2.
 - **Hiperparámetros:** C = 0,01 y C = 100 en la regresión: 1,000 en las tres representaciones. 5.000 genes variables: 1,000. **500 genes variables: PCA-2 cae a 0,333**, PCA-5 sigue en 1,000 (con 500 genes el HVG no entra en la tabla porque se llama HVG-500). PCA-2, con solo dos componentes, es la representación frágil en todos los controles.
 - **Edad dentro de cada diagnóstico (Wälchli).** Correlación de Spearman entre la edad y la probabilidad de GBM que da el modelo en validación interna:
 
@@ -600,8 +616,8 @@ Hecho: pseudobulks de conteos, fase 1 (4.11), análisis `core` (4.7), periferia 
 
 1. **Metadatos clínicos de LGG1** (subtipo, localización, mutaciones): no están en el conjunto de datos (4.8). Pedirlos a la coautora o buscarlos en el artículo.
 2. **Separar edad y tipo de glioma:** con estos 14 pacientes no se puede (4.8) y en Xie tampoco (4.12, punto 4); haría falta una cohorte con edades solapadas entre GBM y LGG.
-3. **Pseudobulks de conteos: fases 1 y 2 hechas (4.11, 4.12).** Hecho: edades individuales de Xie obtenidas (la edad sola separa a los 6 pacientes `core`, 4.12 punto 4). Pendiente inmediato: ejecutar `xie_age` y las variantes `xie_pub` y `norm_deseq_vst` para completar los números, y comprobar por qué LGG1 es el paciente que más influye (4.12).
-   **De la guía:** normalización tipo DESeq/VST implementada en Python (`norm_deseq_vst`, pendiente de ejecutar; inspirada en el paquete de R MLSeq, que normaliza todos los datos juntos, mientras que aquí se ajusta solo con entrenamiento); aún no implementado: mediana de expresión y muestreos estratificados; componentes de varianza con modelo mixto (4.12 usa ANOVA); anotación endotelial publicada de Xie (no está en los datos descargados). `17_pseudobulk` (promedio de log-expresión) ya está ejecutado (4.13); queda abierto reconciliar por qué la regresión de profundidad lo rompe y el adelgazamiento de conteos no.
+3. **Pseudobulks de conteos: fases 1 y 2 hechas (4.11, 4.12).** Hecho: edades individuales de Xie (la edad sola separa a los pacientes y supera a la expresión en periferia y conjunto completo, 4.12 punto 4), variantes `xie_pub` y `norm_deseq_vst`. Pendiente inmediato: comprobar por qué LGG1 es el paciente que más influye (4.12).
+   **De la guía:** normalización DESeq/VST ya implementada en Python y ejecutada (`norm_deseq_vst`; inspirada en el paquete de R MLSeq, que normaliza todo el conjunto a la vez, mientras que aquí se ajusta solo con el entrenamiento); aún no implementado: mediana de expresión y muestreos estratificados; componentes de varianza con modelo mixto (4.12 usa ANOVA); anotación endotelial publicada de Xie (no está en los datos descargados; `xie_pub` solo iguala el número de células). `17_pseudobulk` (promedio de log-expresión) ya está ejecutado (4.13); queda abierto reconciliar por qué la regresión de profundidad lo rompe y el adelgazamiento de conteos no.
 4. **Otro conjunto independiente, solo después de ver los pseudobulks:** Bejarano et al. (2025), *Single-cell atlas of endothelial and mural cells across primary and metastatic brain tumors*, Immunity 58, 1015-1032.e6 (propuesto por un coautor; no se ha revisado si trae GBM y LGG con etiqueta por paciente). Procesarlo cuesta tiempo (descarga, preparación, adaptación). Los pseudobulks no han reducido el efecto de estudio (AUROC 1,000), pero un tercer conjunto serviría justamente para saber si el resultado `core` se repite; primero una auditoría solo de metadatos (¿hay GBM y LGG con etiqueta por paciente y conteos?). Además, si es posible, anotación celular publicada de Xie para validar la selección de endotelio.
 
 ---
