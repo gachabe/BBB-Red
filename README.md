@@ -539,10 +539,42 @@ Resultados en Xie (`xie_age_baseline.csv`; modelo congelado de Wälchli; el mode
 - **Edad dentro de cada diagnóstico (Wälchli):** la correlación entre edad y probabilidad de GBM es positiva en ambos grupos (GBM 0,38-0,52; LGG 0,09-0,26) pero no significativa con n = 6-8 (p = 0,19-0,87); con los 14 juntos es 0,64-0,72 (p ≤ 0,015). **Por tanto no se puede descartar que parte de la predicción siga a la edad ni afirmar lo contrario.**
 - Lo único que apunta en contra de una lectura de edad pura: las probabilidades de expresión son extremas (≤ 0,001 frente a ≥ 0,95) y el tejido periférico de un mismo paciente (misma edad) se desplaza hacia LGG; esto último, sin embargo, empeora la expresión en periferia, no la explica la edad. Hace falta una cohorte con edades solapadas para separar ambos efectos.
 
+- **Modelo con la edad quitada de los genes** (`age_adjust`, exploratorio; a cada gen se le quita su pendiente lineal con la edad, ajustada solo con los pacientes de entrenamiento; edades de Wälchli y de Xie individuales):
+
+| Análisis | Representación | Sin corregir (macro-F1 / AUROC) | Edad quitada (macro-F1 / AUROC) |
+|---|---|---|---|
+| Interno (Wälchli, 14) | PCA-2 | 0,79 / 0,87 | 0,49 / 0,54 |
+| Interno | PCA-5 | 0,66 / 0,84 | 0,64 / 0,73 |
+| Interno | HVG-2000 | 0,78 / 0,91 | 0,69 / 0,65 |
+| Interno | Todos los genes | 0,80 / 0,92 | 0,62 / 0,55 |
+| Xie `core` (6) | PCA-2 | 1,00 / 1,00 | 0,83 / 1,00 |
+| Xie `core` | PCA-5 | 1,00 / 1,00 | 0,33 / 0,89 |
+| Xie `core` | HVG-2000 | 1,00 / 1,00 | 0,89 / 0,96 |
+| Xie `core` | Todos los genes | 0,94 / 1,00 | 1,00 / 1,00 |
+
+  **Lectura:** al quitar la tendencia con la edad, **la señal interna casi desaparece** (AUROC 0,54-0,73 frente a 0,84-0,92), coherente con que la expresión no aporta mucho más que la edad en Wälchli (n = 14). En Xie `core` el orden entre pacientes se mantiene (AUROC 0,89-1,00) pero el umbral deja de ser fiable (PCA-5: 0,33). **No es una prueba de que la señal vaya más allá de la edad:** la pendiente se estima donde edad y diagnóstico están confundidos (quita parte del diagnóstico), solo corrige tendencias lineales y con 6 pacientes en Xie el AUROC alto puede conservar restos de edad. En periferia y conjunto completo el modelo corregido empeora (macro-F1 0,30-0,84). Tabla: `age_adjusted_model.csv`.
+
 **5. Periferia: es un desplazamiento, no falta de señal**
 - Las probabilidades de la periferia quedan **3,9-9,2 unidades de logit por debajo** de las del núcleo del mismo paciente, en el 100 % de los pacientes (todas más cerca de LGG).
 - El AUROC en periferia es 0,82-0,92 (100 células) y no mejora con el tamaño. Si se centran las probabilidades sin usar etiquetas (restando su media), el macro-F1 pasa de 0,30 a 0,86 con HVG-2000, todos los genes y PCA-20; con el mejor umbral a posteriori llega a 0,82-0,86 con 100 y 250 células.
 - Esto es un diagnóstico a posteriori y transductivo (usa la distribución de los propios datos de prueba), **no una validación**: indica que el orden se conserva y que el tejido periférico desplaza al modelo hacia LGG, compatible con la hipótesis de la sección 5, no la prueba.
+
+**Pocas células por paciente: ¿sirven conjuntos externos con ~50 células endoteliales por paciente?** (`small_packets`, `small_packets_core.csv`)
+Entrenamiento como siempre (paquetes de 100 células de Wälchli); evaluación en Xie `core` con **un solo paquete por muestra** de 10, 25 o 50 células, 30 sorteos cada uno:
+
+| Células por paquete | Representación | macro-F1 medio (mínimo) | Sorteos perfectos | AUROC medio (mínimo) |
+|---|---|---|---|---|
+| 10 | PCA-2 | 0,84 (0,63) | 27 % | 1,00 (1,00) |
+| 10 | PCA-5 | 0,86 (0,63) | 37 % | 1,00 (1,00) |
+| 10 | HVG-2000 | 0,85 (0,63) | 20 % | 1,00 (0,89) |
+| 25 | PCA-2 | 0,97 (0,83) | 83 % | 1,00 (1,00) |
+| 25 | PCA-5 | 0,98 (0,83) | 87 % | 1,00 (1,00) |
+| 25 | HVG-2000 | 0,91 (0,83) | 47 % | 1,00 (1,00) |
+| 50 | PCA-2 | 0,99 (0,83) | 93 % | 1,00 (1,00) |
+| 50 | PCA-5 | 0,98 (0,83) | 90 % | 1,00 (1,00) |
+| 50 | HVG-2000 | 0,96 (0,83) | 77 % | 1,00 (1,00) |
+
+Con 25-50 células por paquete **el orden entre pacientes se conserva en los 30 sorteos (AUROC 1,00)** y el macro-F1 es 0,91-0,99; con 10 células empieza a fallar el umbral (0,84-0,86). El mínimo de 0,83 corresponde a un paciente mal clasificado en un sorteo. Es decir, un conjunto externo con ~50 células por paciente es utilizable, sobre todo con PCA. Cautelas: aquí las células salen de Xie, que está enriquecido para endotelio (un conjunto sin enriquecer tendrá más células de otros tipos), y no resuelve la confusión con la edad; hay que conocer las edades de esos pacientes.
 
 **6. Resto de análisis**
 - **Estados endoteliales** (solo Wälchli, paquetes de 50 células de un único estado): la señal aparece en varios estados, mejor en *Angiogenic capillary* (macro-F1 0,85-0,93, AUROC 0,90-0,95) y débil en *Large vein*, *Vein* y *Venule*. *Mitochondrial* sale 1,000 con 6 pacientes: es un estado de calidad dudosa y muy poco fiable. Equilibrado por estados (interno, 100 células): PCA-5 0,921, PCA-2 0,795, HVG-2000 0,764.
@@ -618,9 +650,7 @@ Hecho: pseudobulks de conteos, fase 1 (4.11), análisis `core` (4.7), periferia 
 2. **Separar edad y tipo de glioma:** con estos 14 pacientes no se puede (4.8) y en Xie tampoco (4.12, punto 4); haría falta una cohorte con edades solapadas entre GBM y LGG.
 3. **Pseudobulks de conteos: fases 1 y 2 hechas (4.11, 4.12).** Hecho: edades individuales de Xie (la edad sola separa a los pacientes y supera a la expresión en periferia y conjunto completo, 4.12 punto 4), variantes `xie_pub` y `norm_deseq_vst`. Pendiente inmediato: comprobar por qué LGG1 es el paciente que más influye (4.12).
    **De la guía:** normalización DESeq/VST ya implementada en Python y ejecutada (`norm_deseq_vst`; inspirada en el paquete de R MLSeq, que normaliza todo el conjunto a la vez, mientras que aquí se ajusta solo con el entrenamiento); aún no implementado: mediana de expresión y muestreos estratificados; componentes de varianza con modelo mixto (4.12 usa ANOVA); anotación endotelial publicada de Xie (no está en los datos descargados; `xie_pub` solo iguala el número de células). `17_pseudobulk` (promedio de log-expresión) ya está ejecutado (4.13); queda abierto reconciliar por qué la regresión de profundidad lo rompe y el adelgazamiento de conteos no.
-4. **Dos análisis nuevos en cola (`22_phase2`, etapas `small_packets` y `age_adjust`; código listo, sin ejecutar):**
-   - `small_packets`: el modelo se entrena como siempre y se evalúa en Xie `core` con **un solo paquete de 10, 25 o 50 células por muestra** (30 sorteos cada uno), para saber si servirían conjuntos externos sin enriquecer con ~50 células endoteliales por paciente. Salida: `small_packets_core.csv` (fracción de sorteos con macro-F1 = 1, AUROC medio y mínimo).
-   - `age_adjust`: modelo en el que a cada gen se le quita su pendiente lineal con la edad (ajustada solo con los pacientes de entrenamiento), evaluado dentro de Wälchli y en Xie con sus edades individuales. Es exploratorio: la pendiente se estima donde edad y diagnóstico están confundidos, así que también elimina parte del efecto del diagnóstico; si el resultado se mantiene hay señal más allá de la tendencia lineal con la edad, si cae no es concluyente. Salida: `age_adjusted_model.csv`.
+4. **Hechos en la v30 (resultados en 4.12):** paquetes pequeños en Xie (`small_packets`: 25-50 células por paciente bastan para conservar el orden, AUROC 1,00) y modelo con la edad quitada de los genes (`age_adjust`: la señal interna casi desaparece, AUROC 0,54-0,73; en Xie `core` se conserva el orden pero no el umbral). Sin resolver la confusión con la edad.
 5. **Otro conjunto independiente: auditoría de Bejarano et al. (2025) hecha solo con metadatos** (*Single-cell atlas of endothelial and mural cells across primary and metastatic brain tumors*, Immunity 58, 1015-1032.e6; DOI 10.1016/j.immuni.2025.02.022; fuente: texto del artículo, leído mediante una herramienta automática, conviene verificarlo con el PDF).
 
 | Pregunta | Respuesta |
