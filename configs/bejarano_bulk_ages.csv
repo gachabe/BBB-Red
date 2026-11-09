@@ -1,0 +1,24 @@
+patient,diagnosis_who,idh,sex,age,bulk_ec,scrna_ec
+GBM116,Astrocytoma WHO grade 2,mutant,M,73,Yes,No
+GBM118,"GBM WHO grade 4, subclass RTKII and mesenchymal",wild-type,F,65,Yes,No
+GBM121,Oligodendroglioma WHO grade 2,mutant,F,40,Yes,No
+GBM123,GBM WHO grade 4,wild-type,M,70,Yes,No
+GBM126,GBM WHO grade 4,wild-type,M,64,Yes,No
+GBM133,GBM WHO grade 4,wild-type,F,54,Yes,No
+GBM134,Astrocytoma WHO grade 2,mutant,M,36,Yes,No
+GBM136,GBM WHO grade 4 (histologic variant: gliosarcoma),wild-type,M,74,No,No
+GBM141,Oligodendroglioma WHO grade 3,mutant,M,47,Yes,No
+GBM142,Oligodendroglioma WHO grade 2,mutant,F,49,Yes,No
+GBM144,Astrocytoma WHO Grade 2,mutant,F,70,Yes,No
+GBM145,GBM WHO grade 4,wild-type,F,86,Yes,No
+GBM146,GBM WHO grade 4,wild-type,M,64,Yes,No
+GBM149,GBM WHO grade 4,wild-type,M,59,Yes,No
+GBM151,GBM WHO grade 4,wild-type,M,76,Yes,No
+GBM159,GBM WHO grade 4,wild-type,M,49,Yes,No
+GBM160,Astrocytoma WHO grade 2,mutant,M,51,Yes,No
+GBM165,GBM WHO grade 4,wild-type,M,73,Yes,No
+GBM174,GBM WHO grade 4,wild-type,F,66,Yes,No
+GBM248,GBM WHO grade 4,wild-type,M,77,No,Yes
+GBM271,Oligodendroglioma WHO grade 2,mutant,M,33,No,Yes
+GBM275,GBM WHO grade 4,wild-type,M,62,No,Yes
+GBM276,GBM WHO grade 4,wild-type,F,68,No,Yes

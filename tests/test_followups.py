@@ -326,3 +326,32 @@ def test_age_residualize_within_class_keeps_group_effect():
     assert abs(diff - 5) < 0.2                                                    # con z se conserva el efecto del diagnóstico
     R0, _ = age_residualize(L[:60], L[60:], a[:60], a[60:])
     assert abs(R0[z[:60] == 1].mean() - R0[z[:60] == 0].mean()) < abs(diff)       # sin z se pierde parte
+
+
+def test_bejarano_bulk_runs_on_synthetic(cfg, tmp_path):
+    xie = _synthetic_xie(tmp_path)
+    c = {**cfg, "rom": {**cfg["rom"], "hvg": 60}}
+    m23 = importlib.import_module("experiments.23_bejarano_bulk")
+    S = m23.M19.load_studies(c, xie)
+    genes = S[2]
+    rng = np.random.default_rng(0)
+    n = 10
+    ids = [f"{'GBM' if i % 2 else 'GBM9'}{i:02d}.CD31.2020" for i in range(n)]
+    pats = [s.split(".")[0] for s in ids]
+    counts = pd.DataFrame(rng.poisson(5, size=(len(genes), n)), index=genes, columns=ids)
+    counts.to_csv(tmp_path / "counts.csv")
+    pd.DataFrame(dict(Sample_ID=ids, Disease=["IDH WT glioblastoma" if i % 2 else "IDH mut glioma" for i in range(n)], Disease_subtype="x", Cell_type="CD31")).to_csv(tmp_path / "meta.csv", index=False)
+    pd.DataFrame(dict(patient=pats, diagnosis_who="x", sex="M", age=np.linspace(35, 80, n))).to_csv(tmp_path / "ages.csv", index=False)
+    R = m23.main(c, xie, tmp_path / "counts.csv", tmp_path / "meta.csv", tmp_path / "ages.csv", tmp_path / "bj", seeds=1, spec=dict(size=20, R=3, min_whole=10), S=S)
+    assert {"expresion", "edad sola (referencia)"} <= set(R["modo"]) and R["auroc"].between(0, 1).all()
+    for f in ("bejarano_predictions.csv", "bejarano_metrics.csv", "bejarano_summary.md", "walchli_patients_for_overlap_check.csv"):
+        assert (tmp_path / "bj" / f).exists(), f
+
+
+def test_exact_p_auc_fast_matches_slow():
+    m23 = importlib.import_module("experiments.23_bejarano_bulk")
+    rng = np.random.default_rng(2)
+    y = np.array([1, 1, 1, 0, 0, 0, 0])
+    x = rng.normal(size=7)
+    obs = m23._auc(y, x)
+    assert abs(m23.exact_p_auc_fast(y, x, obs) - m23.P2._exact_p_auc(y, x, obs)) < 1e-12

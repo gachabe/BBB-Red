@@ -653,16 +653,33 @@ Hecho: pseudobulks de conteos, fase 1 (4.11), análisis `core` (4.7), periferia 
 4. **Hechos en la v30 (resultados en 4.12):** paquetes pequeños en Xie (`small_packets`: 25-50 células por paciente bastan para conservar el orden, AUROC 1,00) y modelo con la edad quitada de los genes (`age_adjust`: la señal interna casi desaparece, AUROC 0,54-0,73; en Xie `core` se conserva el orden pero no el umbral). Sin resolver la confusión con la edad.
    **En cola (v32, sin ejecutar):** variante `age_adjust_dx`, que estima la pendiente con la edad *dentro de cada diagnóstico* (gen ~ edad + diagnóstico, quitando solo el término de la edad), para no arrastrar el efecto del diagnóstico que sí quita la versión simple.
    **Tablas:** la carpeta `tablas/` del repositorio guarda copias pequeñas de las tablas de resultados (CSV y resúmenes) citadas en este README; los resultados completos (`results/`) no se suben.
-5. **Otro conjunto independiente: auditoría de Bejarano et al. (2025) hecha solo con metadatos** (*Single-cell atlas of endothelial and mural cells across primary and metastatic brain tumors*, Immunity 58, 1015-1032.e6; DOI 10.1016/j.immuni.2025.02.022; fuente: tabla "Key resources" y "Data and code availability" del PDF, verificadas a mano).
+5. **Otro conjunto independiente: Bejarano et al. (2025)** (*Single-cell atlas of endothelial and mural cells across primary and metastatic brain tumors*, Immunity 58, 1015-1032.e6; DOI 10.1016/j.immuni.2025.02.022; fuente: texto de Resultados, tabla "Key resources" y "Data and code availability" del PDF).
 
-| Pregunta | Respuesta |
-|---|---|
-| ¿Datos de scRNA-seq nuevos? | Sí, pero solo de **4 pacientes** (IDH mutado de bajo grado y GBM de alto grado); el resto son RNA-seq en masa (7 IDH mutado y 12 GBM) |
-| ¿Reutiliza nuestros conjuntos? | **Sí, al menos en parte:** la fila "Deposited data" de la tabla de recursos lista "scRNA-seq IDH mut glioma datasets", fuente Wälchli et al., accesos `GSE256493; GSE242044` (los dos conjuntos que usamos). Por la etiqueta, lo reutilizado son los datos de glioma con IDH mutado; no está claro si también reutiliza GBM de esos conjuntos |
-| ¿Dónde están los datos nuevos? | Portal web del laboratorio (`joycelab.shinyapps.io/braintime`), fuente "este artículo y Bejarano et al." (ref. 24); **no hay acceso en GEO**; los datos crudos solo bajo petición al autor correspondiente. Las muestras nuevas de gliomas con IDH mutado y nativo son del Centre Hospitalier Universitaire Vaudois (Lausana) |
-| ¿Edades? | No están en el texto principal (Tabla S1); solo se dice que el grupo no tumoral es más joven |
+| Parte del artículo | Qué es | ¿Sirve para validar? |
+|---|---|---|
+| **scRNA-seq** | Solo **4 pacientes** nuevos; integra datos publicados de glioma con IDH mutado de Wälchli et al. (accesos `GSE256493; GSE242044`, fila "Deposited data" de la tabla de recursos) | **No:** reutiliza nuestros dos conjuntos (al menos la parte de IDH mutado) y aporta muy pocos pacientes |
+| **RNA-seq en masa de células endoteliales ordenadas por FACS (CD31+)** | **Cohorte nueva de 19 pacientes: 7 con glioma IDH mutado (todos grado II, salvo un oligodendroglioma grado III) y 12 con GBM IDH nativo** (Resultados, Tabla S1); tejido del hospital universitario de Lausana (CHUV) | **Posible tercera cohorte**, con 19 pacientes (permutación exacta: 50.388 asignaciones, p mínimo ≈ 2·10⁻⁵ frente al 0,05 de Xie `core`) |
 
-**Conclusión:** no sirve como cohorte independiente. Reutiliza nuestros dos conjuntos (al menos su parte de IDH mutado) y aporta solo 4 pacientes nuevos de scRNA-seq, que además no dan edades solapadas por sí solos; usarlo sería validar con datos que ya conocemos. Lo que haría falta es una cohorte de glioma con GBM y LGG (o IDH mutado y nativo) de edades solapadas y conteos disponibles; no tenemos candidata. Se puede preguntar a los coautores si conocen alguna o si Bejarano puede aportar las edades y los conteos de sus 4 pacientes.
+Datos: portal del laboratorio (`joycelab.shinyapps.io/braintime`; "RNA-seq and scRNA-seq count data can be visualized and downloaded"), no hay acceso en GEO; los datos crudos solo bajo petición al autor correspondiente. Las edades y los sexos están en la Tabla S1; el artículo dice que la edad no difiere entre los grupos tumorales (sí entre tumor y no tumor, que son jóvenes) y que incluir edad y sexo como covariables no cambió la expresión diferencial, pero eso es expresión diferencial, no clasificación.
+
+**Tabla S1 de Bejarano (revisada, hoja «A» «Seq»):** 23 pacientes con glioma, todos con datos «de este estudio»; **18 tienen RNA-seq en masa de células endoteliales** (7 con IDH mutado y 11 con GBM IDH nativo; un GBM más solo tiene células murales) y 4 tienen scRNA-seq (otros pacientes, sin RNA-seq en masa).
+
+| Grupo (RNA-seq en masa de células endoteliales) | n | Edades (años) | Media |
+|---|---|---|---|
+| IDH mutado (astrocitoma/oligodendroglioma grado 2-3) | 7 | 36, 40, 47, 49, 51, 70, 73 | 52,3 |
+| GBM IDH nativo (grado 4) | 11 | 49, 54, 59, 64, 64, 65, 66, 70, 73, 76, 86 | 66,0 |
+
+- **La confusión con la edad es mucho menor que en Xie:** las edades se **solapan** (49-73 años: 4 pacientes con IDH mutado y 9 GBM). Un modelo solo de edad tendría AUROC 0,77 (Mann-Whitney unilateral p = 0,031), frente a 1,00 en Xie y 0,83 en Wälchli. Es justo la cohorte con edades solapadas que nos faltaba.
+- Hay 8 mujeres y 10 hombres; los sexos están repartidos (IDH mutado 3 M/4 H, GBM 4 M/7 H).
+- Los identificadores de paciente (`GBM116`, ...) no coinciden con los nuestros; no se puede descartar solapamiento con pacientes de Wälchli (mismo hospital y grupo) sin comparar edad, sexo y diagnóstico.
+
+**Datos y código (listos, sin ejecutar):** conteos crudos y metadatos de la parte en masa descargados del portal (pestaña «Bejarano et al., Immunity 2025», Download, «Human data»; 78 muestras CD31+ y PDGFRB+ de 18.874 genes, de las que 18 son CD31+ de glioma, 7 IDH mutado y 11 GBM, que coinciden con la Tabla S1); edades en `configs/bejarano_bulk_ages.csv`. `experiments/23_bejarano_bulk.py` entrena con los 14 pacientes de Wälchli, predice las 18 muestras (expresión, con la pendiente de la edad quitada y con la pendiente dentro de cada diagnóstico) e informa AUROC, p exacto (31.824 asignaciones), macro-F1 con corte 0,5 y centrado, AUROC en la zona de edades solapadas y un control dejando un paciente fuera dentro de la propia cohorte.
+
+**Por comprobar antes de usarla (pendiente):**
+1. Si los **conteos de las muestras en masa son descargables** del portal (`joycelab.shinyapps.io/braintime`) por muestra.
+2. Si **algún paciente coincide con los de Wälchli** (comparar edad, sexo y diagnóstico con nuestros 14; LGG1 tiene 69 años y no coincide con ninguno de los IDH mutado de esta tabla, 70 y 73).
+3. Diferencias de plataforma: RNA-seq en masa de células ordenadas (STAR + RSEM) frente a scRNA-seq 3' de 10x; el efecto de estudio ya es total entre Wälchli y Xie (4.11). Se puede esperar que se conserve el orden y falle el umbral; se vería con el AUROC.
+
 ---
 
 ## 8. Uso (PowerShell, sin activar el entorno)
