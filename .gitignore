@@ -18,3 +18,5 @@ data/xie_min1500/*
 data/xie_periph/
 results/*.log
 results/*.txt
+
+data/bejarano/
