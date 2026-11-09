@@ -1,0 +1,6 @@
+macro-F1 por paciente (umbral 0,5) frente al número de genes variables n con el que se construye el modelo (eje logarítmico); bandas = ± 1 desviación entre semillas de paquetes.
+HVG-n: regresión logística sobre los n genes; PCA-r: PCA de esos n genes y las primeras r componentes. La línea de puntos es el azar (0,5 en AUROC).
+Responde a la pregunta central del proyecto: cuántos genes (o componentes) hacen falta, medido de tres formas: dentro de Wälchli, en Xie core y en Bejarano.
+Wälchli (dejar un paciente fuera), HVG-n: macro_f1 = 10 genes: 0.35, 25 genes: 0.43, 50 genes: 0.64, 100 genes: 0.73, 250 genes: 0.78, 500 genes: 0.83, 1000 genes: 0.78, 2000 genes: 0.78
+Xie core (6 pacientes), HVG-n: macro_f1 = 10 genes: 0.43, 25 genes: 0.47, 50 genes: 0.69, 100 genes: 1.00, 250 genes: 1.00, 500 genes: 1.00, 1000 genes: 1.00, 2000 genes: 1.00
+Bejarano (18, RNA-seq en masa), HVG-n: macro_f1 = 10 genes: 0.28, 25 genes: 0.28, 50 genes: 0.76, 100 genes: 0.58, 250 genes: 0.72, 500 genes: 0.87, 1000 genes: 0.83, 2000 genes: 0.83

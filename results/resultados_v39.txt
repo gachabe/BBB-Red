@@ -1,0 +1,33 @@
+﻿conteos reconstruidos: Walchli (67372, 26666) (desviaci├│n m├íx. 0.0033), Xie (106399, 33538) (desviaci├│n m├íx. 0.0019)
+conteos reconstruidos: Walchli (67372, 26666) (desviaci├│n m├íx. 0.0033), Xie (106399, 33538) (desviaci├│n m├íx. 0.0019)
+conteos reconstruidos: Walchli (67372, 26666) (desviaci├│n m├íx. 0.0033), Xie (106399, 33538) (desviaci├│n m├íx. 0.0019)
+conteos reconstruidos: Walchli (67372, 26666) (desviaci├│n m├íx. 0.0033), Xie (106399, 33538) (desviaci├│n m├íx. 0.0019)
+semilla 0, n = 10 hecho
+semilla 0, n = 25 hecho
+semilla 0, n = 50 hecho
+semilla 0, n = 100 hecho
+semilla 0, n = 250 hecho
+semilla 0, n = 500 hecho
+semilla 0, n = 1000 hecho
+semilla 0, n = 2000 hecho
+semilla 1, n = 10 hecho
+semilla 1, n = 25 hecho
+semilla 1, n = 50 hecho
+semilla 1, n = 100 hecho
+semilla 1, n = 250 hecho
+semilla 1, n = 500 hecho
+semilla 1, n = 1000 hecho
+semilla 1, n = 2000 hecho
+semilla 2, n = 10 hecho
+semilla 2, n = 25 hecho
+semilla 2, n = 50 hecho
+semilla 2, n = 100 hecho
+semilla 2, n = 250 hecho
+semilla 2, n = 500 hecho
+semilla 2, n = 1000 hecho
+semilla 2, n = 2000 hecho
+conteos reconstruidos: Walchli (67372, 26666) (desviaci├│n m├íx. 0.0033), Xie (106399, 33538) (desviaci├│n m├íx. 0.0019)
+semilla 0 hecha
+semilla 1 hecha
+semilla 2 hecha
+

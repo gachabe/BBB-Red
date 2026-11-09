@@ -1,0 +1,6 @@
+AUROC por paciente frente al número de genes variables n con el que se construye el modelo (eje logarítmico); bandas = ± 1 desviación entre semillas de paquetes.
+HVG-n: regresión logística sobre los n genes; PCA-r: PCA de esos n genes y las primeras r componentes. La línea de puntos es el azar (0,5 en AUROC).
+Responde a la pregunta central del proyecto: cuántos genes (o componentes) hacen falta, medido de tres formas: dentro de Wälchli, en Xie core y en Bejarano.
+Wälchli (dejar un paciente fuera), HVG-n: auroc = 10 genes: 0.34, 25 genes: 0.58, 50 genes: 0.61, 100 genes: 0.74, 250 genes: 0.90, 500 genes: 0.92, 1000 genes: 0.92, 2000 genes: 0.91
+Xie core (6 pacientes), HVG-n: auroc = 10 genes: 0.56, 25 genes: 0.56, 50 genes: 0.96, 100 genes: 1.00, 250 genes: 1.00, 500 genes: 1.00, 1000 genes: 1.00, 2000 genes: 1.00
+Bejarano (18, RNA-seq en masa), HVG-n: auroc = 10 genes: 0.57, 25 genes: 0.67, 50 genes: 0.97, 100 genes: 0.96, 250 genes: 0.99, 500 genes: 1.00, 1000 genes: 1.00, 2000 genes: 1.00

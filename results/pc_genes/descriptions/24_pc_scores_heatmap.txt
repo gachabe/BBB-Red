@@ -1,0 +1,4 @@
+Puntuación de cada paciente (media de sus paquetes) en PC1-PC10, estandarizada por componente; filas ordenadas GBM primero y por edad.
+Rojo = puntuación alta = el perfil se parece más al de un GBM (el signo de cada componente está orientado así). Una componente útil muestra un bloque rojo arriba (GBM) y azul abajo (LGG).
+Si la franja sigue la edad (de arriba abajo dentro de cada grupo) en vez del grupo, la componente recoge edad y no diagnóstico.
+Pacientes: 8 GBM y 6 LGG.

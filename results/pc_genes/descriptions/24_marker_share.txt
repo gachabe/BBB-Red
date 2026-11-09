@@ -1,0 +1,3 @@
+Fracción de los 100 genes de mayor |carga| de cada componente (50 por sentido) que son marcadores endoteliales, murales, inmunes o gliales (listas cortas de src/xie.py; 'otros' = ninguno).
+Sirve para ver si una componente recoge cambios de composición celular (muchos marcadores de otro tipo celular) o cambios dentro de la célula endotelial.
+Las listas son cortas (6, 6, 4 y 4 genes), así que la fracción de marcadores es pequeña por construcción; lo informativo es qué componentes los contienen.

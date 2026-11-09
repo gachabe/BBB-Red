@@ -1,0 +1,4 @@
+Los 12 genes con más peso (carga) hacia GBM y los 12 hacia LGG en PC1-PC4.
+El peso es la contribución del gen (escalado) a la componente; el color indica si es un marcador conocido (endotelial, mural, inmune o glía) o no.
+Es una descripción de cómo se construye la componente, no una prueba de que esos genes causen el tumor. Los genes inmunes, murales o gliales indican contaminación o cambios de composición celular.
+Tablas completas (50 genes por sentido hasta PC20) en pc_gene_loadings_top.csv.

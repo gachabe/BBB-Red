@@ -1,0 +1,4 @@
+Probabilidad de GBM que da el modelo entrenado con Wälchli (sin reajustar) a cada paciente de Bejarano (RNA-seq en masa), frente a su edad.
+Color = diagnóstico real; franja amarilla = zona de edades presente en las dos clases, donde la edad sola no puede separarlas; línea de puntos = umbral 0,5.
+Si los dos colores se separan en vertical dentro de la franja amarilla, la expresión aporta algo que la edad no. Los GBM por debajo de 0,5 son el desplazamiento del umbral (el modelo se queda corto de sensibilidad).
+Con PCA-2, GBM por debajo de 0,5: 4 de 11.

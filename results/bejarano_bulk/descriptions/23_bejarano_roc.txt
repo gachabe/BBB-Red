@@ -1,0 +1,3 @@
+Curvas ROC por paciente del modelo de Wälchli aplicado a Bejarano, frente a un modelo que solo usa la edad.
+Cuanto más pegada a la esquina superior izquierda, mejor ordena a los pacientes; la diagonal es el azar.
+El ROC solo mide el orden; no dice nada del umbral 0,5, que en Bejarano sí se desplaza.

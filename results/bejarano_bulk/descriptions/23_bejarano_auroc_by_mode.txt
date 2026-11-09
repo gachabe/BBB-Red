@@ -1,0 +1,3 @@
+AUROC por paciente en Bejarano para cada representación y cada tratamiento de la edad: expresión sin tocar, con la pendiente de la edad quitada de los genes (versión simple) y quitada dentro de cada diagnóstico.
+La línea roja discontinua es la referencia de la edad sola (AUROC 0.77); la de puntos, el azar (0,5).
+Si la señal fuera solo edad, quitar la edad la destruiría; la versión simple quita también parte del diagnóstico, por eso baja más (ver 4.12 punto 4).

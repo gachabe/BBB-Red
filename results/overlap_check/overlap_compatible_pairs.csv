@@ -1,0 +1,6 @@
+paciente_walchli,paciente_bejarano,clase,sexo,edad_walchli,edad_bejarano,dif_edad
+GBM1,GBM123,GBM,M,71.0,70,1.0
+GBM6,GBM149,GBM,M,60.0,59,1.0
+GBM8,GBM159,GBM,M,48.0,49,1.0
+LGG1,GBM144,LGG,F,69.0,70,1.0
+LGG2,GBM141,LGG,M,46.0,47,1.0

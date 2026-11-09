@@ -346,6 +346,8 @@ def test_bejarano_bulk_runs_on_synthetic(cfg, tmp_path):
     assert {"expresion", "edad sola (referencia)"} <= set(R["modo"]) and R["auroc"].between(0, 1).all()
     for f in ("bejarano_predictions.csv", "bejarano_metrics.csv", "bejarano_summary.md", "walchli_patients_for_overlap_check.csv"):
         assert (tmp_path / "bj" / f).exists(), f
+    for f in ("23_bejarano_probability_vs_age", "23_bejarano_auroc_by_mode", "23_bejarano_roc"):
+        assert (tmp_path / "bj" / (f + ".png")).exists() and (tmp_path / "bj" / "descriptions" / (f + ".txt")).exists(), f
 
 
 def test_exact_p_auc_fast_matches_slow():
@@ -355,3 +357,99 @@ def test_exact_p_auc_fast_matches_slow():
     x = rng.normal(size=7)
     obs = m23._auc(y, x)
     assert abs(m23.exact_p_auc_fast(y, x, obs) - m23.P2._exact_p_auc(y, x, obs)) < 1e-12
+
+
+def test_pc_genes_explainability(cfg, tmp_path):
+    xie = _synthetic_xie(tmp_path)
+    c = {**cfg, "rom": {**cfg["rom"], "hvg": 60}}
+    m24 = importlib.import_module("experiments.24_pc_genes")
+    S = m24.M19.load_studies(c, xie)
+    rd = tmp_path / "README.md"
+    rd.write_text("a\n" + m24.START + "\nviejo\n" + m24.END + "\nb\n", encoding="utf-8")
+    summary, top, drv = m24.main(c, xie, tmp_path / "pcg", readme=rd, seeds=2, spec=dict(size=20, R=3, min_whole=10), S=S, n_top=10, n_pc=5)
+    assert len(summary) == 5 and summary["auroc_gbm_lgg"].between(0, 1).all() and summary["estabilidad"].between(0, 1).all()
+    assert set(top["sentido"]) == {"GBM", "LGG"} and (top.groupby(["pc", "sentido"]).size() == 10).all()
+    r = m24.fit_once(S, dict(components=[2, 5, 10, 20], hvg=60, scale_clip=10.0, min_cpm=1.0, min_frac=0.25), dict(size=20, R=3, min_whole=10), 0)
+    pm, yp = r["pm"].to_numpy(), r["ypat"]
+    assert (pm[yp == 1].mean(axis=0) >= pm[yp == 0].mean(axis=0) - 1e-12).all()        # convención de signo: puntuación alta = más GBM
+    assert {"PCA-2", "PCA-5", "PCA-10", "PCA-20", "HVG-60"} >= set(drv["modelo"]) and "PCA-2" in set(drv["modelo"])
+    txt = rd.read_text(encoding="utf-8")
+    assert "viejo" not in txt and "### 4.14" in txt and txt.startswith("a\n") and txt.rstrip().endswith("b")
+    for f in ("pc_gene_loadings_top.csv", "pc_summary.csv", "classifier_gene_drivers.csv", "pc_genes_readme_block.md"):
+        assert (tmp_path / "pcg" / f).exists(), f
+    for f in ("24_pc_variance", "24_pc_scores_heatmap", "24_pc_top_genes", "24_pc_scatter", "24_pc_vs_age", "24_classifier_drivers", "24_gene_overlap_heatmap", "24_marker_share"):
+        assert (tmp_path / "pcg" / (f + ".png")).exists() and (tmp_path / "pcg" / "descriptions" / (f + ".txt")).exists(), f
+
+
+def test_overlap_check(cfg, tmp_path):
+    xie = _synthetic_xie(tmp_path)
+    m25 = importlib.import_module("experiments.25_overlap_check")
+    S = m25.M19.load_studies(cfg, xie)
+    rd = tmp_path / "README.md"
+    rd.write_text("a\n<!-- OVERLAP_START -->\nviejo\n<!-- OVERLAP_END -->\nb\n", encoding="utf-8")
+    pairs, per, nul = m25.main(cfg, xie, "configs/bejarano_bulk_ages.csv", tmp_path / "ov", readme=rd, tol=3.0, n_perm=50, S=S)
+    assert len(per) == S[1]["Patient"].nunique() and (per["n_parejas"] >= 0).all() and len(nul) == 50
+    assert set(m25.bejarano_table("configs/bejarano_bulk_ages.csv")["clase"]) == {"GBM", "LGG"} and len(m25.bejarano_table("configs/bejarano_bulk_ages.csv")) == 18
+    assert (tmp_path / "ov" / "25_overlap_check.png").exists() and (tmp_path / "ov" / "descriptions" / "25_overlap_check.txt").exists()
+    t = rd.read_text(encoding="utf-8")
+    assert "viejo" not in t and "Parejas compatibles" in t and t.startswith("a\n") and t.rstrip().endswith("b")
+
+
+def test_gene_budget(cfg, tmp_path):
+    xie = _synthetic_xie(tmp_path)
+    c = {**cfg, "rom": {**cfg["rom"], "hvg": 60}}
+    m27 = importlib.import_module("experiments.27_gene_budget")
+    S = m27.M19.load_studies(c, xie)
+    rd = tmp_path / "README.md"
+    rd.write_text("a\n<!-- GENE_BUDGET_START -->\nviejo\n<!-- GENE_BUDGET_END -->\nb\n", encoding="utf-8")
+    rng = np.random.default_rng(0)
+    n = 10
+    ids = [f"{'GBM' if i % 2 else 'GBM9'}{i:02d}.CD31.2020" for i in range(n)]
+    pd.DataFrame(rng.poisson(5, size=(len(S[2]), n)), index=S[2], columns=ids).to_csv(tmp_path / "counts.csv")
+    pd.DataFrame(dict(Sample_ID=ids, Disease=["IDH WT glioblastoma" if i % 2 else "IDH mut glioma" for i in range(n)], Disease_subtype="x", Cell_type="CD31")).to_csv(tmp_path / "meta.csv", index=False)
+    pd.DataFrame(dict(patient=[s_.split(".")[0] for s_ in ids], diagnosis_who="x", sex="M", age=np.linspace(35, 80, n))).to_csv(tmp_path / "ages.csv", index=False)
+    bej = (tmp_path / "counts.csv", tmp_path / "meta.csv", tmp_path / "ages.csv")
+    R, T = m27.main(c, xie, tmp_path / "gb", readme=rd, ns=(20, 60), seeds=2, spec=dict(size=20, R=3, min_whole=10), S=S, bej=bej)
+    assert {"interna", "xie_core", "bejarano"} <= set(T["cohorte"]) and T["auroc"].between(0, 1).all() and set(T["n_genes"]) == {20, 60}
+    assert {"HVG-n", "PCA-2", "PCA-5", "PCA-10"} <= set(T["representacion"])
+    for f in ("27_gene_budget_auroc", "27_gene_budget_macro_f1"):
+        assert (tmp_path / "gb" / (f + ".png")).exists() and (tmp_path / "gb" / "descriptions" / (f + ".txt")).exists()
+    assert "viejo" not in rd.read_text(encoding="utf-8")
+
+
+def _synthetic_bulk(tmp_path, genes, n=10):
+    rng = np.random.default_rng(0)
+    ids = [f"{'GBM' if i % 2 else 'GBM9'}{i:02d}.CD31.2020" for i in range(n)]
+    cnt = rng.poisson(5, size=(len(genes), n)) + (np.arange(len(genes))[:, None] < 40) * (np.arange(n) % 2) * 6
+    pd.DataFrame(cnt, index=genes, columns=ids).to_csv(tmp_path / "counts.csv")
+    pd.DataFrame(dict(Sample_ID=ids, Disease=["IDH WT glioblastoma" if i % 2 else "IDH mut glioma" for i in range(n)], Disease_subtype="x", Cell_type="CD31")).to_csv(tmp_path / "meta.csv", index=False)
+    pd.DataFrame(dict(patient=[s_.split(".")[0] for s_ in ids], diagnosis_who="x", sex="M", age=np.linspace(35, 80, n))).to_csv(tmp_path / "ages.csv", index=False)
+    return (tmp_path / "counts.csv", tmp_path / "meta.csv", tmp_path / "ages.csv")
+
+
+def test_transfer_matrix(cfg, tmp_path):
+    xie = _synthetic_xie(tmp_path)
+    c = {**cfg, "rom": {**cfg["rom"], "hvg": 60}}
+    m26 = importlib.import_module("experiments.26_transfer_matrix")
+    S = m26.M19.load_studies(c, xie)
+    bej = _synthetic_bulk(tmp_path, S[2])
+    rd = tmp_path / "README.md"
+    rd.write_text("a\n<!-- TRANSFER_START -->\nviejo\n<!-- TRANSFER_END -->\nb\n", encoding="utf-8")
+    M = m26.main(c, xie, bej, tmp_path / "tm", readme=rd, seeds=2, spec=dict(size=20, R=3, min_whole=10), S=S)
+    got = set(zip(M["entrena"], M["prueba"]))
+    assert {("Wälchli", "Xie core"), ("Wälchli", "Bejarano"), ("Bejarano", "Wälchli"), ("Bejarano", "Xie core"), ("Xie core", "Wälchli"), ("Wälchli", "Wälchli"), ("Bejarano", "Bejarano"), ("Xie core", "Xie core")} <= got
+    assert ("Xie core", "Xie periferia") not in got and M["auroc"].between(0, 1).all()
+    for f in ("26_transfer_matrix_auroc", "26_transfer_matrix_macro_f1", "26_reverse_patient_probabilities"):
+        assert (tmp_path / "tm" / (f + ".png")).exists() and (tmp_path / "tm" / "descriptions" / (f + ".txt")).exists(), f
+    assert "viejo" not in rd.read_text(encoding="utf-8")
+
+
+def test_cohort_overview(cfg, tmp_path):
+    xie = _synthetic_xie(tmp_path)
+    m28 = importlib.import_module("experiments.28_cohort_overview")
+    S = m28.M19.load_studies(cfg, xie)
+    summ = m28.main(cfg, xie, "configs/xie_ages.csv", "configs/bejarano_bulk_ages.csv", tmp_path / "co", S=S)
+    assert len(summ) == 3 and summ["n_pacientes"].tolist()[1:] == [7, 18]
+    assert not bool(summ.loc[1, "solape_edades"]) and bool(summ.loc[2, "solape_edades"])        # Xie sin solape, Bejarano con solape
+    for f in ("28_cohort_ages", "28_cohort_composition", "28_pipeline_diagram"):
+        assert (tmp_path / "co" / (f + ".png")).exists() and (tmp_path / "co" / "descriptions" / (f + ".txt")).exists(), f

@@ -1,0 +1,3 @@
+Puntuación de cada paciente en PC1-PC4 frente a su edad (color = diagnóstico).
+Sirve para ver si una componente separa por diagnóstico (dos nubes de colores a distinta altura a cualquier edad) o por edad (los puntos siguen una diagonal).
+En Wälchli los GBM son mayores que los LGG (salvo LGG1, 69 años), así que edad y diagnóstico están mezclados; ver sección 4.12 punto 4 del README.

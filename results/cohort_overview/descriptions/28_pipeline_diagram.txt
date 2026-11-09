@@ -1,0 +1,4 @@
+Diagrama del flujo de trabajo, de la matriz de expresión a una probabilidad por paciente.
+Los cuadros rodeados en rojo (filtro de genes, TMM, genes variables, escalado y PCA) se calculan con los pacientes de entrenamiento y se aplican tal cual a los de prueba; es lo que evita las fugas de información.
+PCA-r = primeras r componentes de la misma PCA; HVG-2000 = regresión logística directamente sobre los 2.000 genes, sin PCA; All genes = todos los genes filtrados.
+La predicción final es una por paciente: la media de las probabilidades de sus paquetes.

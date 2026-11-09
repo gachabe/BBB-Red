@@ -1,0 +1,3 @@
+Transferencia inversa: modelo PCA-5 entrenado solo con las 18 muestras en masa de Bejarano y aplicado a cada paciente de Wälchli y Xie (media de sus paquetes y semillas).
+Color = diagnóstico real; línea de puntos = umbral 0,5. Si GBM y LGG forman dos nubes separadas el modelo conserva el orden aunque el umbral esté desplazado.
+Se entrena con RNA-seq en masa y se predice scRNA-seq agregado en pseudobulks: diferencia de tecnología esperable.

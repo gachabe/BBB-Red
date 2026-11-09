@@ -1,0 +1,6 @@
+Qué recoge cada componente principal (PC1-PC20) de la PCA de los pseudobulks de Wälchli.
+Izquierda: varianza explicada (barras) y acumulada (línea); las líneas de puntos marcan hasta dónde llega PCA-2, 5, 10 y 20 (PCA-r = primeras r componentes).
+Centro: AUROC de la puntuación media por paciente para separar GBM de LGG (rojo; 0,5 = azar) y valor absoluto de su correlación con la edad (gris).
+Derecha: estabilidad de los 30 genes de mayor |carga| al repetir el sorteo de paquetes (índice de Jaccard medio entre semillas).
+PC1 explica 30.5 % de la varianza; las 20 primeras suman 89.8 %.
+La componente que mejor separa GBM de LGG es PC2 (AUROC 0.98, correlación con la edad +0.61).

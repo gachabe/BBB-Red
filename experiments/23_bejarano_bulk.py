@@ -23,6 +23,7 @@ from scipy.stats import rankdata
 
 from src.data import load_config
 from src.evaluation import to_markdown
+from src.figs import COL, plt, save_fig
 from src.final_model import align_genes
 from src.pbcount import lopo, patient_metrics, predict_block, to_patient
 
@@ -67,6 +68,82 @@ def _auc(y, x):
 def _logit(p):
     p = np.clip(np.asarray(p, dtype=float), 1e-6, 1 - 1e-6)
     return np.log(p / (1 - p))
+
+
+def figures(out):
+    """Tres figuras (23_bejarano_*.png) a partir de bejarano_predictions.csv y bejarano_metrics.csv (se pueden regenerar con --replot)."""
+    from sklearn.metrics import roc_curve
+    out = Path(out)
+    pred = pd.read_csv(out / "bejarano_predictions.csv")
+    met = pd.read_csv(out / "bejarano_metrics.csv")
+    avg = pred.groupby(["modo", "representacion", "sample", "patient", "y", "age"], as_index=False)["p"].mean()
+    ex = avg[avg["modo"] == "expresion"]
+    hv = [r for r in ex["representacion"].unique() if r.startswith("HVG-")][:1]
+    reps = [r for r in ("PCA-2", "PCA-5") if r in set(ex["representacion"])] + hv
+    ages = ex.drop_duplicates("sample")
+    lo, hi = ages.groupby("y")["age"].min().max(), ages.groupby("y")["age"].max().min()
+    # 1. probabilidad frente a edad
+    fig, ax = plt.subplots(1, len(reps), figsize=(4.8 * len(reps), 4.4), sharey=True)
+    ax = np.atleast_1d(ax)
+    for a, rep in zip(ax, reps):
+        g = ex[ex["representacion"] == rep]
+        a.axvspan(lo, hi, color="#f1c40f", alpha=0.15, label=f"edades solapadas ({lo:.0f}-{hi:.0f})")
+        for yv, nm in ((0, "IDH mutado"), (1, "GBM IDH nativo")):
+            gg = g[g["y"] == yv]
+            a.scatter(gg["age"], gg["p"], color=COL["GBM" if yv else "LGG"], edgecolor="k", s=55, label=nm, zorder=3)
+        a.axhline(0.5, color="k", linestyle=":")
+        a.set_xlabel("edad (años)")
+        a.set_title(rep, fontsize=10)
+        a.set_ylim(-0.03, 1.03)
+        a.grid(alpha=0.3)
+    ax[0].set_ylabel("P(GBM) del modelo de Wälchli")
+    ax[0].legend(frameon=False, fontsize=8, loc="center left")
+    nlow = int(((ex["representacion"] == reps[0]) & (ex["p"] < 0.5) & (ex["y"] == 1)).sum())
+    save_fig(fig, out, "23_bejarano_probability_vs_age", [
+        "Probabilidad de GBM que da el modelo entrenado con Wälchli (sin reajustar) a cada paciente de Bejarano (RNA-seq en masa), frente a su edad.",
+        "Color = diagnóstico real; franja amarilla = zona de edades presente en las dos clases, donde la edad sola no puede separarlas; línea de puntos = umbral 0,5.",
+        "Si los dos colores se separan en vertical dentro de la franja amarilla, la expresión aporta algo que la edad no. Los GBM por debajo de 0,5 son el desplazamiento del umbral (el modelo se queda corto de sensibilidad).",
+        f"Con {reps[0]}, GBM por debajo de 0,5: {nlow} de {int((ex[ex['representacion'] == reps[0]]['y'] == 1).sum())}."])
+    # 2. AUROC por modo y representación
+    m = met[~met["modo"].str.startswith("control") & (met["modo"] != "edad sola (referencia)")]
+    modos = list(m["modo"].unique())
+    repl = list(m["representacion"].unique())
+    fig, ax = plt.subplots(figsize=(11, 4.4))
+    w = 0.8 / max(len(modos), 1)
+    for i, mo in enumerate(modos):
+        v = [m[(m["modo"] == mo) & (m["representacion"] == r)]["auroc"].mean() for r in repl]
+        ax.bar(np.arange(len(repl)) + i * w, v, width=w, label=mo, edgecolor="w")
+    ao = met[met["modo"] == "edad sola (referencia)"]["auroc"].iloc[0]
+    ax.axhline(ao, color="#c0392b", linestyle="--", label=f"edad sola ({ao:.2f})")
+    ax.axhline(0.5, color="k", linestyle=":")
+    ax.set_xticks(np.arange(len(repl)) + w * (len(modos) - 1) / 2)
+    ax.set_xticklabels(repl)
+    ax.set_ylabel("AUROC por paciente")
+    ax.set_ylim(0.4, 1.02)
+    ax.legend(frameon=False, fontsize=8, ncol=2, loc="lower left")
+    ax.set_title("Bejarano: AUROC del modelo de Wälchli según cómo se trate la edad")
+    save_fig(fig, out, "23_bejarano_auroc_by_mode", [
+        "AUROC por paciente en Bejarano para cada representación y cada tratamiento de la edad: expresión sin tocar, con la pendiente de la edad quitada de los genes (versión simple) y quitada dentro de cada diagnóstico.",
+        f"La línea roja discontinua es la referencia de la edad sola (AUROC {ao:.2f}); la de puntos, el azar (0,5).",
+        "Si la señal fuera solo edad, quitar la edad la destruiría; la versión simple quita también parte del diagnóstico, por eso baja más (ver 4.12 punto 4)."])
+    # 3. curvas ROC
+    fig, ax = plt.subplots(figsize=(5.4, 5))
+    y0 = ex.drop_duplicates("sample")
+    for rep, col in zip(reps, ("#2471a3", "#27ae60", "#8e44ad")):
+        g = ex[ex["representacion"] == rep].sort_values("sample")
+        f, t, _ = roc_curve(g["y"], g["p"])
+        ax.plot(f, t, color=col, label=f"{rep} (AUROC {P2._auc(g['y'], g['p']):.2f})")
+    f, t, _ = roc_curve(y0["y"], y0["age"])
+    ax.plot(f, t, color="#c0392b", linestyle="--", label=f"solo edad (AUROC {P2._auc(y0['y'], y0['age']):.2f})")
+    ax.plot([0, 1], [0, 1], "k:")
+    ax.set_xlabel("1 - especificidad")
+    ax.set_ylabel("sensibilidad")
+    ax.legend(frameon=False, fontsize=8, loc="lower right")
+    ax.set_title("Curvas ROC en Bejarano (por paciente)")
+    save_fig(fig, out, "23_bejarano_roc", [
+        "Curvas ROC por paciente del modelo de Wälchli aplicado a Bejarano, frente a un modelo que solo usa la edad.",
+        "Cuanto más pegada a la esquina superior izquierda, mejor ordena a los pacientes; la diagonal es el azar.",
+        "El ROC solo mide el orden; no dice nada del umbral 0,5, que en Bejarano sí se desplaza."])
 
 
 def main(cfg, xie_path, counts, meta, ages, out, seeds=3, spec=None, S=None):
@@ -126,6 +203,7 @@ def main(cfg, xie_path, counts, meta, ages, out, seeds=3, spec=None, S=None):
              to_markdown(R.round(3)), "\n",
              "Comprobar a mano si algún paciente coincide con los de Wälchli (`walchli_patients_for_overlap_check.csv` frente a `bejarano_samples_used.csv`: edad, sexo y diagnóstico).\n"]
     (out / "bejarano_summary.md").write_text("\n".join(lines), encoding="utf-8")
+    figures(out)
     return R
 
 
@@ -138,5 +216,9 @@ if __name__ == "__main__":
     ap.add_argument("--ages", default="configs/bejarano_bulk_ages.csv")
     ap.add_argument("--out", default="results/bejarano_bulk")
     ap.add_argument("--seeds", type=int, default=3)
+    ap.add_argument("--replot", action="store_true", help="solo regenera las figuras a partir de los CSV ya guardados")
     a = ap.parse_args()
+    if a.replot:
+        figures(a.out)
+        raise SystemExit(0)
     main(load_config(a.config), a.xie, a.counts, a.metadata, a.ages, a.out, a.seeds)

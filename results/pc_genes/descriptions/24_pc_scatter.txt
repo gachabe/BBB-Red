@@ -1,0 +1,3 @@
+Cada punto es un paciente de Wälchli (media de sus paquetes); color = diagnóstico, tamaño = edad.
+Paneles: PC1 frente a PC2, PC1 frente a PC3 y PC2 frente a PC3. Es lo que ve PCA-2 (primer panel) y PCA-5 (los tres, más PC4 y PC5).
+Un pacientes de un color rodeado de otro color es un paciente mal clasificado por esa proyección (ver sección 4.3 del README).

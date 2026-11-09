@@ -1,0 +1,3 @@
+Genes que más empujan la predicción de cada modelo: para PCA-r, coeficiente de la regresión logística llevado al espacio de genes (suma de coeficiente x carga de las r componentes); para HVG, el coeficiente de cada gen.
+Positivo = empuja hacia GBM, negativo = hacia LGG. Mismos colores que en 24_pc_top_genes.
+Si PCA-2 y HVG comparten genes, el modelo de pocas dimensiones usa la misma señal que el de miles de genes; si no, usa otra (ver 24_gene_overlap_heatmap).

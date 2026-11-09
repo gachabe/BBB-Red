@@ -1,0 +1,4 @@
+cohorte,n_pacientes,n_lgg,n_gbm,edad_min_lgg,edad_max_lgg,edad_min_gbm,edad_max_gbm,solape_edades,n_en_solape
+Wälchli (scRNA-seq),14,6,8,26.0,69.0,48.0,82.0,True,6
+Xie (scRNA-seq),7,3,4,28.0,48.0,56.0,70.0,False,0
+Bejarano (RNA-seq en masa),18,7,11,36.0,73.0,49.0,86.0,True,13

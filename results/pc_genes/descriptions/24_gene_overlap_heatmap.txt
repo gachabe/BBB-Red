@@ -1,0 +1,3 @@
+Solapamiento (índice de Jaccard) entre listas de ~50 genes: los de mayor |carga| de PC1-PC10 y los de mayor peso de cada modelo.
+Valores altos fuera de la diagonal indican que dos componentes (o un modelo y una componente) se apoyan en los mismos genes; las componentes ortogonales suelen compartir pocos.
+Solapamiento medio entre componentes distintas: 0.010.

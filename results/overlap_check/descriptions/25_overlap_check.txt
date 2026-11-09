@@ -1,0 +1,5 @@
+Posible solapamiento de pacientes entre Wälchli (14) y Bejarano (18 con RNA-seq en masa).
+Izquierda: edad de cada paciente por cohorte y clase (círculo = hombre, triángulo = mujer); las líneas unen parejas de la misma clase y sexo con edades que difieren ≤ 1 año. Derecha: nº de parejas compatibles que salen al permutar edades y sexos de Bejarano dentro de cada clase (2000 permutaciones).
+Parejas compatibles observadas: 5; esperadas por azar: 5.0; P(azar >= observado) = 1.000.
+Pacientes de Wälchli sin ninguna pareja compatible (no pueden estar repetidos): 9 de 14.
+Esto no prueba que sean la misma persona ni que no lo sean: solo acota a quién preguntar a los autores.

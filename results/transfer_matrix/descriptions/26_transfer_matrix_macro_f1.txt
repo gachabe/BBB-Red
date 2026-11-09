@@ -1,0 +1,15 @@
+macro-F1 por paciente (corte 0,5) al entrenar con la cohorte de cada fila y predecir la de cada columna (sin reajustar). Recuadro negro = dentro de la propia cohorte, dejando un paciente fuera.
+Filas: Wälchli (scRNA-seq), Xie core (scRNA-seq, edad confundida) y Bejarano (RNA-seq en masa). Columnas: las mismas más la periferia de Xie, que solo se usa como prueba.
+Un modelo que solo aprende diferencias de estudio fallaría fuera de su cohorte; uno que aprende señal biológica compartida debería mantener el AUROC (el orden) aunque el macro-F1 (el umbral) se desplace.
+Con 6-18 pacientes por cohorte los valores son muy inciertos; no hay intervalos de confianza.
+PCA-5, entrena Bejarano -> prueba Bejarano: AUROC 0.94, macro-F1 0.83
+PCA-5, entrena Bejarano -> prueba Wälchli: AUROC 0.92, macro-F1 0.85
+PCA-5, entrena Bejarano -> prueba Xie core: AUROC 1.00, macro-F1 1.00
+PCA-5, entrena Bejarano -> prueba Xie periferia: AUROC 0.92, macro-F1 0.30
+PCA-5, entrena Wälchli -> prueba Bejarano: AUROC 1.00, macro-F1 0.78
+PCA-5, entrena Wälchli -> prueba Wälchli: AUROC 0.83, macro-F1 0.64
+PCA-5, entrena Wälchli -> prueba Xie core: AUROC 1.00, macro-F1 1.00
+PCA-5, entrena Wälchli -> prueba Xie periferia: AUROC 0.83, macro-F1 0.30
+PCA-5, entrena Xie core -> prueba Bejarano: AUROC 1.00, macro-F1 1.00
+PCA-5, entrena Xie core -> prueba Wälchli: AUROC 0.90, macro-F1 0.85
+PCA-5, entrena Xie core -> prueba Xie core: AUROC 1.00, macro-F1 1.00

@@ -1,0 +1,3 @@
+Composición de la cohorte de entrenamiento (Wälchli). Izquierda: pacientes por diagnóstico (8 GBM y 6 LGG). Derecha: células endoteliales por paciente (escala logarítmica).
+El paciente con más células tiene 17,580 y el que menos 264: por eso cada paciente pesa igual en el entrenamiento y las células se agrupan en paquetes de 100.
+Las diferencias de tamaño entre pacientes son la razón de usar pseudobulks por paciente en vez de células sueltas.

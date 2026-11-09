@@ -1,0 +1,5 @@
+Edad de cada paciente en las tres cohortes, por diagnóstico (rojo = GBM / IDH nativo, azul = LGG / IDH mutado). La zona sombreada es el intervalo de edades que comparten las dos clases dentro de la cohorte.
+Wälchli (scRNA-seq): LGG 26-69 años (n = 6), GBM 48-82 (n = 8); zona de edades solapadas 48-69 con 6 pacientes.
+Xie (scRNA-seq): LGG 28-48 años (n = 3), GBM 56-70 (n = 4); sin edades solapadas: la edad separa perfectamente los dos grupos.
+Bejarano (RNA-seq en masa): LGG 36-73 años (n = 7), GBM 49-86 (n = 11); zona de edades solapadas 49-73 con 13 pacientes.
+Por qué importa: si las edades no se solapan (Xie), un modelo que solo usa la edad separa los grupos igual de bien que la expresión; Bejarano es la cohorte que permite distinguir ambas cosas.

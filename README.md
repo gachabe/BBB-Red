@@ -4,7 +4,161 @@ Pipeline reproducible: matriz de expresión (células endoteliales x genes) → 
 
 **Pregunta:** ¿cuánta dimensionalidad (genes) puede quitar la PCA sin perder la capacidad de predecir el tipo de glioma? Se compara `PCA-r` (r = 2, 5, 10, 20, 50) frente a `HVG-2000` (genes más variables) y frente a `All genes` (26.666), con regresión logística y random forest. El modelo se entrena con un estudio (Wälchli) y se valida internamente (dejando un paciente fuera) y externamente (Xie).
 
-> **Estado (9-nov-2026):** análisis a nivel de célula, ajuste de hiperparámetros, validación externa, diagnóstico de estudio, análisis `core`, bootstrap, significado de PC1/PC2, exploratorios y **pseudobulks de conteos crudos (fase 1 del protocolo de los coautores, sección 4.11)** terminados. Conclusión: señal modesta dentro de Wälchli; **no se reproduce en Xie completo**; **con pseudobulks y solo muestras `core` (6 pacientes) la separación es perfecta y robusta a las variantes técnicas probadas (fase 2)**, pero con 6 pacientes eso no se puede demostrar estadísticamente, la edad no se puede descartar y la periferia está desplazada; el efecto de estudio sigue siendo total (sección 1). **Novedad (9-nov): en una cohorte independiente de RNA-seq en masa (Bejarano et al., 18 pacientes con edades solapadas) el modelo congelado de Wälchli ordena perfectamente a los pacientes (AUROC 1,00; p exacto < 0,0001), también dentro de la zona de edades solapadas, donde la edad sola no discrimina (sección 7, punto 5).**
+> **Estado (9-nov-2026):** análisis a nivel de célula, ajuste de hiperparámetros, validación externa, diagnóstico de estudio, análisis `core`, bootstrap, significado de PC1/PC2, exploratorios y **pseudobulks de conteos crudos (fase 1 del protocolo de los coautores, sección 4.11)** terminados. Conclusión: señal modesta dentro de Wälchli; **no se reproduce en Xie completo**; **con pseudobulks y solo muestras `core` (6 pacientes) la separación es perfecta y robusta a las variantes técnicas probadas (fase 2)**, pero con 6 pacientes eso no se puede demostrar estadísticamente, la edad no se puede descartar y la periferia está desplazada; el efecto de estudio sigue siendo total (sección 1). **Novedad (9-nov, v39): el README tiene ahora un mapa del proyecto, la PCA explicada paso a paso y el historial de lo probado y descartado (secciones 0 y 3.8); nuevos análisis: genes que componen cada componente (4.14), solapamiento de pacientes con Bejarano (4.15), cuántos genes hacen falta (4.16) y transferencia entre cohortes (4.17).** **Novedad (9-nov): en una cohorte independiente de RNA-seq en masa (Bejarano et al., 18 pacientes con edades solapadas) el modelo congelado de Wälchli ordena perfectamente a los pacientes (AUROC 1,00; p exacto < 0,0001), también dentro de la zona de edades solapadas, donde la edad sola no discrimina (sección 7, punto 5).**
+
+---
+
+## 0. Mapa del proyecto y guía de lectura
+
+Esta sección es para quien llega nuevo al repositorio (por ejemplo, para escribir el artículo): dónde está cada cosa, cómo se construye el modelo paso a paso, qué es una componente principal y en qué sección del README está cada resultado.
+
+### 0.1 Cómo está montado el proyecto
+
+```
+bbb/
+├── README.md              este documento (todo lo que se ha hecho, probado y descartado)
+├── configs/               configuración y tablas de entrada pequeñas
+│   ├── full.yaml, full_noreg.yaml, mini.yaml, demo.yaml   parámetros de cada ejecución
+│   ├── xie_samples.csv, xie_ages.csv, xie_published_counts.csv   muestras, edades y recuentos publicados de Xie
+│   └── bejarano_bulk_ages.csv     Tabla S1 de Bejarano: edad, sexo, IDH, qué pacientes tienen RNA-seq en masa
+├── src/                   código reutilizable (sin resultados): carga, PCA, modelos, métricas, figuras
+├── experiments/           un script por análisis, numerados en el orden en que se hicieron (0.2)
+├── tests/                 pruebas con datos sintéticos (`python -m pytest -q`)
+├── tablas/                tablas CSV/MD clave, copiadas de results/ para citarlas y revisarlas sin ejecutar nada
+├── results/               salida de cada análisis: una carpeta por análisis, con sus PNG y sus descripciones (0.3)
+├── data/                  datos de entrada (no se suben a GitHub: son grandes y no son nuestros)
+└── models/                modelos entrenados (no se suben a GitHub)
+```
+
+`src/` en una línea por módulo: `data.py` (carga del objeto de Wälchli y validación), `features.py` (reparto por paciente, submuestreo, etiquetas permutadas), `rom.py` (genes variables, escalado y PCA a nivel de célula), `models.py` (regresión logística y random forest), `evaluation.py` (métricas, tablas y figuras de la parte a nivel de célula), `permutation.py` y `tuning.py` (permutación exacta y validación anidada), `batch.py` (efecto de estudio), `final_model.py` (modelo final, aplicación a otro estudio, alineación de genes), `xie.py` (preparación de Xie y marcadores celulares), `pseudobulk.py` (pseudobulks promediados), **`pbcount.py` (pseudobulks de conteos crudos: TMM, PCA, regresión logística, dejar un paciente fuera, métricas por paciente; es el núcleo del análisis actual)** y `figs.py` (guardar cada figura con su descripción y rellenar bloques del README).
+
+### 0.2 Qué script produce qué
+
+| Script | Qué hace | Carpeta de resultados | Sección |
+|---|---|---|---|
+| `01_eda` | Cohorte, composición por tipo de vaso, fuga de información, normalización | `results/<modo>/` | 3.1 |
+| `02_rom`, `03_ml`, `04_final` | Genes variables + escalado + PCA, regresión logística y random forest dejando un paciente fuera, con control de etiquetas permutadas | `results/<modo>/` | 3.2, 4.1 |
+| `05_seeds` | Repite lo anterior con varias semillas | `results/<modo>/` | 4.1 |
+| `06_permutation` | Permutación exacta a nivel de paciente | `results/<modo>/` | 4.2 |
+| `07_train_final`, `09_tune` | Modelo final con los 14 pacientes; hiperparámetros con validación anidada | `models/`, `results/<modo>/tuning/` | 3.3, 4.4 |
+| `10_prepare_xie`, `08_external` | Prepara Xie y le aplica el modelo congelado de Wälchli | `data/xie*/`, `results/external_xie*/` | 3.4, 4.5, 4.7 |
+| `11_batch` | ¿Se identifica el estudio de una célula nueva? | `results/batch/` | 3.5, 4.6 |
+| `12_pc_meaning`, `16_age_check` | Qué representan PC1 y PC2; relación con la edad | `results/pc_meaning/`, `results/age_check/` | 4.8 |
+| `13_bootstrap` | Intervalos por remuestreo de pacientes | `results/bootstrap/` | 4.9 |
+| `14_within_xie`, `15_align_external` | Exploratorios: dentro de Xie y alineando medias | `results/within_xie/`, `results/external_xie_aligned/` | 4.10 |
+| `17_pseudobulk` | Pseudobulks promediados (secundario) | `results/pseudobulk/` | 3.6, 4.13 |
+| `18_audit_xie`, `19`, `20`, `21` | **Pseudobulks de conteos crudos (análisis principal)**: auditoría de Xie, validación interna y externa, controles, informe | `results/pseudobulk_counts/` | 3.7, 4.11 |
+| `22_phase2` | Robustez del resultado `core`, edad, periferia, filtros de Xie | `results/pseudobulk_phase2/` | 4.12 |
+| `23_bejarano_bulk` | Validación con la cohorte de RNA-seq en masa de Bejarano | `results/bejarano_bulk/` | 7 (punto 5) |
+| `24_pc_genes` | **Qué genes componen cada componente principal** | `results/pc_genes/` | 4.14 |
+| `25_overlap_check` | ¿Puede un paciente de Bejarano ser uno de Wälchli? | `results/overlap_check/` | 4.15 |
+| `27_gene_budget` | **¿Cuántos genes hacen falta?** Rendimiento frente al nº de genes | `results/gene_budget/` | 4.16 |
+| `26_transfer_matrix` | Entrenar con una cohorte y predecir las otras (incluye Bejarano → Wälchli y Xie) | `results/transfer_matrix/` | 4.17 |
+| `28_cohort_overview` | Edades de las tres cohortes y diagrama del método | `results/cohort_overview/` | 0.3 |
+| `replot` | Regenera figuras y descripciones sin reentrenar | -- | 8 |
+
+### 0.3 Figuras y sus descripciones
+
+**Convención:** cada análisis guarda sus gráficas (`.png`) en su carpeta de `results/` y, dentro, en `descriptions/`, un `.txt` con **el mismo nombre** que explica qué muestra la gráfica y da sus cifras clave calculadas de los propios datos (por ejemplo `results/pc_genes/24_pc_variance.png` y `results/pc_genes/descriptions/24_pc_variance.txt`). Quien escriba el artículo puede copiar la descripción como pie de figura. Los números de las figuras indican el script que las crea.
+
+| Carpeta | Figura | Qué muestra |
+|---|---|---|
+| `results/cohort_overview/` | `28_pipeline_diagram` | Diagrama del método, de la matriz de expresión al paciente, marcando lo que se ajusta solo con entrenamiento |
+| | `28_cohort_ages` | Edad de cada paciente en las tres cohortes por diagnóstico, con el solape de edades |
+| | `28_cohort_composition` | Pacientes y células de la cohorte de entrenamiento |
+| `results/<modo>/` | `01_cohort`, `02_pca_variance` | Composición de la cohorte; varianza explicada de la PCA a nivel de célula |
+| | `03_confusion_*`, `05_per_patient_*`, `07_by_cluster_*` | Matrices de confusión, acierto por paciente y por tipo de vaso |
+| | `04_components_vs_performance_*`, `06_..._seeds_*` | Rendimiento frente al nº de componentes (una semilla y varias) |
+| | `08_permutation_*` | Distribución de la permutación exacta frente al valor observado |
+| `results/batch/` | `09_batch_model_space`, `10_batch_joint_pca`, `11_batch_domain_classifier` | Efecto de estudio: Xie en el espacio del modelo, PCA conjunta e identificación del estudio |
+| `results/pc_meaning/`, `results/age_check/` | `12_pc_by_patient`, `16_age_vs_pc2` | PC1/PC2 por paciente y relación de PC2 con la edad |
+| `results/bootstrap/` | `13_bootstrap_ci` | Intervalos de confianza por remuestreo de pacientes |
+| `results/pseudobulk/` | `17_pseudobulk` | Pseudobulks promediados (secundario) |
+| `results/pseudobulk_counts/` | `21_cells_per_pseudobulk`, `21_stability_vs_packet_size` | Células por pseudobulk y estabilidad según el tamaño del paquete |
+| | `21_patient_predictions`, `21_cell_vs_pseudobulk`, `21_core_vs_periphery` | Probabilidad por paciente; célula frente a pseudobulk; núcleo frente a periferia |
+| | `21_expression_vs_composition_age`, `21_pseudobulk_pca` | Expresión frente a composición y edad; PCA de los pseudobulks |
+| `results/pseudobulk_phase2/` | `22_robustness`, `22_training_subsample` | Robustez del `core` a las variantes técnicas; dependencia del conjunto de entrenamiento |
+| `results/bejarano_bulk/` | `23_bejarano_probability_vs_age` | Probabilidad de GBM de cada paciente de Bejarano frente a su edad, con la zona de edades solapadas |
+| | `23_bejarano_auroc_by_mode`, `23_bejarano_roc` | AUROC según cómo se trate la edad; curvas ROC frente a un modelo de solo edad |
+| `results/pc_genes/` | `24_pc_variance` | Varianza, utilidad (AUROC) y estabilidad de cada componente |
+| | `24_pc_scores_heatmap`, `24_pc_scatter`, `24_pc_vs_age` | Puntuación de cada paciente en cada componente; pacientes en el plano PC1-PC2-PC3; edad frente a puntuación |
+| | `24_pc_top_genes` | Genes con más peso en PC1-PC4, coloreados por tipo de marcador celular |
+| | `24_classifier_drivers`, `24_gene_overlap_heatmap`, `24_marker_share` | Genes que empujan cada modelo; solapamiento entre listas de genes; marcadores celulares por componente |
+| `results/overlap_check/` | `25_overlap_check` | Edad y sexo de los pacientes de Wälchli y Bejarano, parejas compatibles y lo esperable por azar |
+| `results/transfer_matrix/` | `26_transfer_matrix_auroc`, `26_transfer_matrix_macro_f1` | Entrenar con una cohorte y predecir las otras (orden frente a umbral) |
+| | `26_reverse_patient_probabilities` | Predicción por paciente al entrenar solo con Bejarano |
+| `results/gene_budget/` | `27_gene_budget_auroc`, `27_gene_budget_macro_f1` | Rendimiento frente al número de genes variables, en tres cohortes |
+
+### 0.4 Cómo se construye el modelo, paso a paso
+
+Es el modelo de los pseudobulks de conteos (4.11-4.17). Cada fila dice qué se hace, por qué, y con qué datos se ajusta (todo lo que depende de los datos se ajusta **solo con los pacientes de entrenamiento** y se aplica tal cual a los demás).
+
+| Paso | Qué hace | Por qué | Se ajusta con |
+|---|---|---|---|
+| 1. Conteos | Se reconstruyen los conteos crudos de cada célula a partir de la matriz publicada: `expm1(X) × nCount_RNA / 10.000` | Los pseudobulks suman conteos, no logaritmos | -- (exacto, se comprueba) |
+| 2. Paquetes | Se agrupan al azar 100 células **del mismo paciente** (en Xie, de la misma muestra) y se suman sus conteos: un pseudobulk por paquete | Una célula tiene mucho ruido; un paquete se parece a una muestra de RNA-seq en masa. Todos los paquetes de un paciente van siempre al mismo bloque de validación | -- |
+| 3. Filtro de genes | Se quedan los genes con CPM > 1 en al menos el 25 % de los pseudobulks de entrenamiento | Quitar genes casi siempre a cero | Entrenamiento |
+| 4. TMM + log2-CPM | Se corrige el tamaño de librería con TMM (frente a una referencia de entrenamiento) y se pasa a log2 de cuentas por millón | Hacer comparables pseudobulks de distinta profundidad | Entrenamiento |
+| 5. Genes variables | Se eligen los 2.000 genes con más varianza | Quedarse con los genes que más cambian entre pseudobulks, que son los que pueden distinguir grupos | Entrenamiento |
+| 6. Escalado | A cada gen se le resta la media y se divide por la desviación típica (recorte a ±10) | Que ningún gen domine la PCA solo por tener valores más grandes | Entrenamiento |
+| 7. **PCA** | Se buscan las direcciones del espacio de genes en las que más varían los pseudobulks, ordenadas de mayor a menor varianza (PC1, PC2, ...). **PCA-r = las r primeras componentes de esa misma PCA** | Resumir 2.000 genes en unas pocas coordenadas; es la «reducción de dimensionalidad» de la pregunta | Entrenamiento |
+| 8. Regresión logística | Aprende una combinación lineal de las coordenadas que separa GBM de LGG (penalización L2, C = 1, clases balanceadas, cada paciente pesa igual) | Clasificador simple y poco propenso a sobreajustar con 14 pacientes | Entrenamiento |
+| 9. Probabilidad por paciente | Cada paquete recibe P(GBM); la probabilidad del paciente es la **media** de la de sus paquetes | Una predicción por paciente, que es la unidad independiente | -- |
+| 10. Evaluación | AUROC (¿ordena bien a los pacientes?), macro-F1 con corte 0,5 (¿acierta la clase?), permutación exacta y bootstrap de pacientes | El AUROC mide el orden; el macro-F1 depende además de que el umbral esté bien colocado | -- |
+
+Las tres representaciones comparadas: **PCA-r** (pasos 1-8 con r componentes), **HVG-2000** (se salta el paso 7: regresión logística directa sobre los 2.000 genes) y **All genes** (todos los genes filtrados).
+
+### 0.5 Qué es una componente principal y cómo leerla
+
+La PCA no elige genes: **crea ejes nuevos, cada uno mezcla muchos genes**. Una componente es una receta: «súmale a cada paciente un poco de cada gen, con estos pesos». Para un pseudobulk:
+
+`puntuación en la componente k = Σ sobre los genes (carga del gen en k × valor escalado del gen)`
+
+| Concepto | Qué es | Dónde verlo |
+|---|---|---|
+| **Carga (peso, *loading*)** | Cuánto contribuye un gen a la componente. Positiva: el gen sube cuando sube la puntuación; negativa: baja | `tablas/pc_gene_loadings_top.csv`, 4.14 |
+| **Puntuación (*score*)** | Valor de un paquete o paciente en la componente: dónde cae en ese eje | `24_pc_scores_heatmap`, `24_pc_scatter` |
+| **Varianza explicada** | Qué parte de la variación total entre pseudobulks recoge la componente. PC1 recoge más que PC2, y así sucesivamente | `24_pc_variance`, `tablas/pc_summary.csv` |
+| **PCA-r** | Las primeras r componentes juntas. PCA-2 usa solo PC1 y PC2 | 0.4 |
+| **Signo** | El signo de una componente es arbitrario; aquí se orienta para que una puntuación alta signifique «más GBM» | 4.14 |
+| **Genes que empujan el modelo** | Combinación de los coeficientes de la regresión logística con las cargas: qué genes pesan realmente en la predicción de PCA-r | `24_classifier_drivers`, `tablas/classifier_gene_drivers.csv` |
+
+**Cómo interpretar una componente (guía para la parte biológica):** (1) mirar si separa GBM de LGG o si sigue la edad (`24_pc_variance`, `24_pc_vs_age`); (2) leer los genes con más peso en cada sentido (`24_pc_top_genes`, tabla de 4.14); (3) mirar si hay marcadores de otros tipos celulares, lo que indicaría cambios de composición y no de la célula endotelial (`24_marker_share`); (4) comprobar que la lista es estable entre semillas (columna `estabilidad`); (5) pasar las listas por un análisis de enriquecimiento (rutas, tipos celulares). **Cautela:** las cargas describen cómo se construye la componente, no una causa; una componente puede mezclar diagnóstico, edad, profundidad y estudio (4.8 lo muestra para PC1 y PC2).
+
+### 0.6 Glosario
+
+| Término | Significado en este proyecto |
+|---|---|
+| GBM / LGG | Glioblastoma (grado 4, IDH nativo) / glioma de bajo grado (IDH mutado). Etiqueta `glioma_type` |
+| Paciente | Unidad independiente: todo se reparte, se valida y se cuenta por paciente |
+| Pseudobulk / paquete | Suma de conteos de ~100 células del mismo paciente; se comporta como una muestra de RNA-seq en masa |
+| Dejar un paciente fuera (LOPO) | Se entrena con 13 pacientes y se predice el que falta; se repite con los 14 |
+| Modelo congelado | Modelo entrenado con Wälchli y aplicado a otra cohorte sin reajustar nada |
+| `core` / periferia | Muestras de Xie del núcleo del tumor (`T`) o de tejido periférico (`N`) |
+| AUROC | Probabilidad de que un GBM reciba más probabilidad que un LGG (0,5 = azar, 1 = orden perfecto). No depende del umbral |
+| Macro-F1 | Acierto medio de las dos clases con corte 0,5. Sí depende del umbral |
+| Orden frente a umbral | Una cohorte puede conservar el orden (AUROC alto) y desplazar el umbral (macro-F1 bajo); es lo que pasa en la periferia de Xie y en Bejarano |
+| Permutación exacta | Se recorren todas las asignaciones posibles de etiquetas a pacientes: p exacto sin aleatoriedad |
+| Efecto de estudio (*batch*) | Diferencias entre cohortes por laboratorio, tecnología o procesado, no por diagnóstico |
+| Confusión con la edad | Edad y diagnóstico van juntos, así que no se sabe cuál usa el modelo; Bejarano permite separarlas |
+| TMM, log2-CPM | Normalización de tamaño de librería y escala logarítmica de cuentas por millón |
+| HVG | Genes más variables (*highly variable genes*) |
+| IDH | Gen cuya mutación define los gliomas de bajo grado (mutado) frente a los GBM (nativo) |
+
+### 0.7 Dónde mirar según lo que se vaya a escribir
+
+| Si hay que escribir sobre... | Mirar |
+|---|---|
+| Resumen y conclusión | Sección 1 y «Cómo contarlo» |
+| Datos y cohortes | Sección 2, 28_cohort_ages |
+| Métodos | 0.4 (paso a paso), 3.2, 3.7 y `28_pipeline_diagram` |
+| Rendimiento interno y significación | 4.1, 4.2, 4.9, 4.11 |
+| Validación externa y efecto de estudio | 4.5, 4.6, 4.7, 4.11, 4.12 |
+| Edad como confusor | 4.12 (punto 4), Bejarano (sección 7, punto 5), 4.15 |
+| Interpretación biológica | 4.14 (genes por componente) y `tablas/` |
+| Cuántos genes hacen falta (pregunta central) | 4.16 y 4.1 |
+| Qué se probó y se descartó | 3.8 |
+| Limitaciones | Sección 6 |
 
 ---
 
@@ -127,13 +281,51 @@ Sigue la guía de implementación de los coautores (fase 1). **Ejecutado; result
 - **Fijado de antemano:** paquetes de 100 células, media de probabilidades, Xie núcleo como análisis externo principal, 5 semillas. Los demás tamaños son sensibilidad y se informan todos.
 - **No implementado todavía:** véase la sección 7.
 
-### 3.8 Lo que se probó y se descartó
+### 3.8 Historial de lo probado, lo descartado y por qué
+
+Tabla cronológica de las decisiones del proyecto. «Decisión» dice qué quedó como análisis principal, qué como secundario o exploratorio, y qué se abandonó.
+
+| # | Qué se probó | Motivo | Qué salió | Decisión | Sección |
+|---|---|---|---|---|---|
+| 1 | PCA-r, HVG-2000 y todos los genes con regresión logística y random forest, a nivel de **célula**, dejando un paciente fuera | Pregunta original: cuánta dimensionalidad se puede quitar | Con regresión logística, PCA-2 predice como 2.000 o 26.666 genes (0,74 frente a 0,72 y 0,71); con random forest, más genes empeoran | Línea base | 4.1 |
+| 2 | Regresión de profundidad (`nCount_RNA`, `nFeature_RNA`) a nivel de célula | Práctica habitual; fijada antes de ver resultados | Mejora a PCA-2; se repitió sin ella (`full_noreg`) como sensibilidad | Se mantiene; sensibilidad informada | 3.2, 5 |
+| 3 | Permutación exacta a nivel de paciente | Saber si la señal supera al azar | Solo PCA-2 con regresión logística y regresión de profundidad (p ajustado 0,033) | Señal débil y dependiente de decisiones | 4.2 |
+| 4 | Hiperparámetros con validación anidada | Comprobar que los valores por defecto no limitan | Diferencias de ±0,02, dentro del ruido | **No cambia nada**; se usan los valores por defecto | 4.4 |
+| 5 | Validación externa en Xie (7 pacientes), a nivel de célula | Probar que la señal no es solo de Wälchli | **No se replica** (macro-F1 0,54-0,60) | Resultado negativo, se informa | 4.5 |
+| 6 | Solo muestras `core` de Xie | Hipótesis fijada de antemano: la periferia puede parecerse a LGG | Mejora (0,67-0,84) | Secundario fijado de antemano | 4.7 |
+| 7 | Solo muestras periféricas de Xie | Comprobar la hipótesis anterior | Azar (0,41-0,55) | Exploratorio | 4.7 |
+| 8 | Corte de profundidad en Xie (≥ 1.500 genes por célula) | Ver si la baja profundidad explicaba el fallo | Empeoró | **Descartado**; se hizo tras ver resultados y no debe presentarse como corrección | 4.5 |
+| 9 | Diagnóstico de efecto de estudio | ¿Se identifica el estudio de una célula nueva? | Casi sin error (AUC hasta 1,000); no lo explica la profundidad | Hallazgo: el efecto de estudio es muy fuerte | 4.6 |
+| 10 | Alinear las medias por gen de Xie con las de Wälchli | Ver si el fallo es un desplazamiento de medias | Mejora en casi todas las filas, más con muchas dimensiones | Exploratorio y transductivo; solo una pista | 4.10 |
+| 11 | Dejar un paciente fuera solo dentro de Xie | ¿Hay señal dentro de Xie a nivel de célula? | Cercano al azar | Exploratorio | 4.10 |
+| 12 | Qué representan PC1 y PC2; edad | Entender qué aprende PCA-2 | PC1 sigue profundidad y composición; PC2 sigue el glioma pero también la edad (no separables) | Alerta sobre la edad | 4.8 |
+| 13 | Bootstrap de pacientes | Cuantificar la incertidumbre real | Intervalos muy anchos | Se informa siempre junto a cada cifra | 4.9 |
+| 14 | **Pseudobulks promediados** (media de log-expresión) | Propuesta de los coautores | `core` se reproduce; la regresión de profundidad lo rompe | Secundario | 3.6, 4.13 |
+| 15 | **Pseudobulks de conteos crudos** (suma de conteos, TMM, log-CPM), paquetes de 50 a 500 células | Protocolo de los coautores | **`core` con macro-F1 1,000**; Xie completo y periferia no | **Análisis principal** | 3.7, 4.11 |
+| 16 | Variantes técnicas de la fase 2: random forest, paquetes disjuntos, UMI igualados, conteos adelgazados, genes comunes, filtros de Xie, quitar genes de estudio, C de la regresión, 5.000 genes | Ver si el `core` depende de alguna decisión técnica | Aguanta todas; **PCA-2 es frágil** (500 genes variables: 0,333) y PCA-5 no | Resultado robusto a lo técnico | 4.12 |
+| 17 | Normalización DESeq/VST en lugar de TMM | Inspirada en MLSeq | No cambia nada | Descartada como mejora; no es DESeq2 exacto | 4.12 |
+| 18 | Filtro duro de endotelio en Xie (80 / 53,9 / 25 % de células más endoteliales) | Nuestra selección tenía casi el doble de células que el artículo | `core` sigue en 1,000 con el mismo nº de células que el artículo | Robustez confirmada | 4.12 |
+| 19 | Entrenar al revés (Xie `core` → Wälchli) y señal dentro de Xie con pseudobulks | ¿La señal es compartida? | AUROC 0,90 al revés; 1,000 dentro de Xie `core` | Apoya señal compartida, con cautelas | 4.12 |
+| 20 | Edades individuales de Xie y modelo de solo edad | Hipótesis de confusión con la edad | **La edad separa perfectamente los grupos de Xie** (28-48 frente a 56-70); el modelo de edad iguala o supera a la expresión | **Confusión confirmada**: la validación en Xie no demuestra más que la edad | 4.12 (punto 4) |
+| 21 | Quitar la pendiente de la edad de los genes (versión simple) | Ver qué queda sin la edad | La señal interna casi desaparece (AUROC 0,54-0,73) | Descartada como modelo final: quita también parte del diagnóstico | 4.12 |
+| 22 | Pendiente de la edad estimada **dentro de cada diagnóstico** | Corregir lo anterior | La señal se conserva (AUROC 0,71-0,91 interno; 1,00 en Xie) | Post hoc; indica que la señal no es solo edad | 4.12 |
+| 23 | Paquetes pequeños (10, 25, 50 células) en Xie `core` | ¿Sirven conjuntos con pocas células por paciente? | Con 25-50 células el orden se conserva en todos los sorteos | Utilizable, sobre todo con PCA | 4.12 |
+| 24 | Estados endoteliales por separado | ¿La señal está en un estado concreto? | Mejor en *Angiogenic capillary*; débil en venas | Descriptivo | 4.12 |
+| 25 | Paquetes definidos como fracción de las células, en Xie completo | Probar si el tamaño explica el fallo en Xie completo | Resultado no interpretable (paquetes de tamaños muy distintos) | Descartado | 4.12 |
+| 26 | **Cohorte de Bejarano** (RNA-seq en masa, 18 pacientes, edades solapadas) | Única cohorte que permite separar edad y diagnóstico | **AUROC 1,000**, también en la zona de edades solapadas (la edad sola: 0,51); el umbral se desplaza | Validación más fuerte hasta ahora; falta confirmar que no hay pacientes comunes | Sección 7 (punto 5) |
+| 27 | Comprobación de solapamiento de pacientes Wälchli-Bejarano (clase, sexo, edad) | Los autores no lo dicen | Ver 4.15 | Se asume sin solapamiento hasta que lo confirmen los autores | 4.15 |
+| 28 | Genes que componen cada componente principal | Interpretación biológica | Ver 4.14 | Explicabilidad para el grupo | 4.14 |
+| 29 | Rendimiento frente al número de genes (curva de «cuántos genes hacen falta») | Responder a la pregunta central con las tres cohortes | Ver 4.16 | Pendiente de ejecutar | 4.16 |
+| 30 | Matriz de transferencia entre cohortes (incluye Bejarano → Wälchli y Xie) | Ver si el eje GBM/LGG se comparte en todas direcciones | Ver 4.17 | Pendiente de ejecutar | 4.17 |
+
+**Descartes menores:**
 - **Renormalizar la matriz de Wälchli:** innecesario, ya viene normalizada.
 - **Etiqueta de localización:** descartada; el objetivo final es solo `glioma_type`.
-- **Permutación con "Todos los genes":** no se hizo; requiere matrices densas de 26.666 columnas y miles de ajustes.
+- **Permutación con «Todos los genes»:** no se hizo; requiere matrices densas de 26.666 columnas y miles de ajustes.
 - **Diagnóstico de batch con un solo estudio:** se quitó (no aportaba nada) y se recuperó cuando hubo dos conjuntos (3.5).
 - **Corrección de C en PCA-2:** no era un fallo, la puntuación no depende de C (4.8).
-- **Corte de profundidad en Xie (exploratorio, no es el análisis principal):** quedarse solo con células de ≥1.500 genes empeoró el resultado (ver 4.5). Se hizo después de ver los resultados y no debe presentarse como corrección del análisis principal.
+
+**Lo que no se puede hacer con los datos de Wälchli y Xie:** separar edad y diagnóstico (en Xie las edades no se solapan; en Wälchli solo hay un LGG dentro de la zona de edades compartida). Por eso Bejarano es la cohorte clave.
 
 ---
 
@@ -628,6 +820,174 @@ Promedio de la expresión log-normalizada en paquetes **disjuntos** de 25, 50 y 
 - **Dentro de Wälchli (dejar un paciente fuera):** macro-F1 0,71-0,80 (la regresión logística con PCA-20 llega a 0,794; random forest con HVG-2000, 0,774).
 - **Efecto de estudio:** el estudio se identifica con balanced accuracy de 0,89 (regresión logística) a 0,95 (random forest), 0,96 sin regresión de profundidad.
 
+<!-- PC_GENES_START -->
+### 4.14 Qué genes componen las componentes principales (para interpretar el modelo)
+
+Generado por `experiments/24_pc_genes.py` (modelo de pseudobulks ajustado con los 14 pacientes de Wälchli, paquetes de 100 células, 2.000 genes más variables). **PCA-r usa las r primeras componentes de la misma PCA** (PCA-2 = PC1-PC2, PCA-5 = PC1-PC5, etc.). Cada componente está orientada para que una puntuación alta signifique «más GBM». El peso de un gen indica cuánto contribuye a la componente (sobre el gen escalado): **no es una causa biológica**, y una componente puede mezclar tipo de glioma, edad y estudio. Las tablas completas (50 genes por sentido y componente hasta PC20) están en `tablas/pc_gene_loadings_top.csv`.
+
+**Resumen de las componentes** (AUROC: capacidad de la puntuación del paciente para separar GBM de LGG; edad: correlación de Spearman con la edad; estabilidad: solapamiento de los 30 genes principales entre semillas, 1 = idéntico):
+
+| componente | varianza_% | auroc_gbm_lgg | spearman_edad | estabilidad |
+|---|---|---|---|---|
+| PC1 | 30.512 | 0.542 | 0.370 | 0.672 |
+| PC2 | 17.416 | 0.979 | 0.609 | 0.765 |
+| PC3 | 13.070 | 0.458 | 0.196 | 0.668 |
+| PC4 | 11.794 | 0.417 | -0.145 | 0.627 |
+| PC5 | 4.616 | 0.479 | 0.334 | 0.652 |
+| PC6 | 2.769 | 0.750 | 0.189 | 0.717 |
+| PC7 | 1.892 | 0.604 | 0.403 | 0.515 |
+| PC8 | 1.431 | 0.521 | 0.187 | 0.354 |
+| PC9 | 1.325 | 0.625 | 0.134 | 0.454 |
+| PC10 | 1.194 | 0.646 | 0.011 | 0.653 |
+| PC11 | 1.039 | 0.500 | -0.359 | 0.580 |
+| PC12 | 0.772 | 0.479 | 0.086 | 0.402 |
+| PC13 | 0.701 | 0.583 | 0.123 | 0.513 |
+| PC14 | 0.235 | 0.479 | 0.121 | 0.351 |
+| PC15 | 0.193 | 0.500 | -0.279 | 0.204 |
+| PC16 | 0.187 | 0.521 | -0.048 | 0.041 |
+| PC17 | 0.179 | 0.625 | 0.583 | 0.023 |
+| PC18 | 0.176 | 0.562 | 0.185 | 0.029 |
+| PC19 | 0.170 | 0.521 | 0.108 | 0.011 |
+| PC20 | 0.166 | 0.604 | -0.108 | 0.029 |
+
+**PC1** (30.5 % de varianza; AUROC GBM/LGG 0.54; edad +0.37)
+- Hacia GBM: RPS17, C6orf48, METTL12, ATP5EP2, LINC00116, SLC25A6, HINT2, C10orf10, RARRES3, WRB, C5orf56, SUPT4H1
+- Hacia LGG: ARMCX6, SPATA13, KLHL11, ZNF805, SEPTIN11, TENT5A, SEPTIN9, SEPTIN7, SPTLC1, ATP5MF, TUT7, CPLANE1
+
+**PC2** (17.4 % de varianza; AUROC GBM/LGG 0.98; edad +0.61)
+- Hacia GBM: PCDH17, HTRA1, EIF4EBP1, HRH1, MMP2, GABRD, KLHDC8A, THY1, CD276, PGM2L1, DUSP4, SCAMP5
+- Hacia LGG: NET1, USP54, MT1M, ADAMTS8, SLCO1A2, AIF1L, USP53, ZNF385B, HLF, BTG2, PDCD4, ST6GAL1
+
+**PC3** (13.1 % de varianza; AUROC GBM/LGG 0.46; edad +0.20)
+- Hacia GBM: C14orf37, KIAA1147, AK1, C11orf84, C6orf106, SDCCAG3, PQLC1, AL136164.4, FAM129A, DIRC2, KIAA1551, MATR3-ENSG00000015479
+- Hacia LGG: AC093323.1, ARRDC3, NFKBIZ, AP001528.2, CLU, HSPB1, MT-RNR1, MT-RNR2, HNRNPA1P48, BHLHE40, LGALS3, GLUL
+
+**PC4** (11.8 % de varianza; AUROC GBM/LGG 0.42; edad -0.15)
+- Hacia GBM: FZD3, ATP1B2, SCRN1, DENND2A, ACSS3, MT-ND6, KCNE4, LZTS1, AGT, SMOC2, KCNB1, PLEKHA4
+- Hacia LGG: GSN, CALCRL, THBD, CXCL12, PIK3R3, ITPRIP, SGK1, ADAMTS1, FAM241A, LRRC32, DUSP5, RAMP3
+
+**PC5** (4.6 % de varianza; AUROC GBM/LGG 0.48; edad +0.33)
+- Hacia GBM: DPEP1, TNFRSF21, APLN, VASH1, SYT1, IGLON5, TMEM37, QPCT, NID2, MMP25, PGF, CA2
+- Hacia LGG: PLAC9, ARHGAP20, ARHGAP10, NPY1R, INPP4B, TXNIP, RUNX1T1, ARID5B, INMT, SULF2, LITAF, PDE8B
+
+**Genes que más empujan cada modelo** (coeficiente de la regresión logística llevado al espacio de genes; positivo = hacia GBM):
+
+- **PCA-2** hacia GBM: EIF4EBP1, PCDH17, PTP4A3, HTRA1, HRH1, KLHDC8A, TIMP1, MMP2, SCAMP5, CD276, THY1, FOLH1, OAF, TMED3, GABRD
+- **PCA-2** hacia LGG: USP54, ADAMTS8, NET1, MT1M, SYNE1, ZNF385B, ARRDC2, TACC1, BTG2, TIPARP, USP53, PDK4, IGF1R, RHBDL3, GADD45G
+- **PCA-5** hacia GBM: EIF4EBP1, SEZ6L2, PTTG1, NEK6, TUBB2B, THY1, CPVL, HRH1, SCG5, TIMP1, KLHDC8A, DOK5, ETV1, FABP7, LYPD1
+- **PCA-5** hacia LGG: CAVIN2, TSC22D1, ARRDC2, TACC1, BTG2, ST8SIA6, IFNGR1, GRASP, NET1, IRAK3, ADAMTS8, HERPUD1, PDCD4, USP54, PDK4
+
+Para el análisis de enriquecimiento (rutas, tipos celulares) se pueden usar directamente las listas de `tablas/pc_gene_loadings_top.csv` y `tablas/classifier_gene_drivers.csv`.
+
+<!-- PC_GENES_END -->
+
+**Figuras de 4.14** (`results/pc_genes/`, cada una con su descripción en `descriptions/`): `24_pc_variance` (varianza, AUROC, edad y estabilidad por componente), `24_pc_scores_heatmap` (puntuación de cada paciente en PC1-PC10), `24_pc_top_genes` (genes con más peso en PC1-PC4), `24_pc_scatter` y `24_pc_vs_age` (pacientes en el plano de las componentes y frente a la edad), `24_classifier_drivers` (genes que empujan cada modelo), `24_gene_overlap_heatmap` (solapamiento entre listas) y `24_marker_share` (marcadores celulares por componente). Tablas: `tablas/pc_summary.csv`, `tablas/pc_gene_loadings_top.csv`, `tablas/classifier_gene_drivers.csv`.
+
+### 4.15 ¿Hay pacientes comunes entre Wälchli y Bejarano?
+
+**Supuesto de trabajo:** mientras los autores no confirmen lo contrario, **se asume que no hay pacientes comunes** entre los 14 de Wälchli y los 18 de Bejarano con RNA-seq en masa, y todos los resultados con Bejarano (sección 7, punto 5; 4.17) se leen con esa condición. Los identificadores no coinciden y el artículo no dice nada; son del mismo hospital, así que no se puede excluir. Si hubiera solapamiento, la validación en Bejarano dejaría de ser independiente para esos pacientes y habría que quitarlos de la validación (con la tabla de abajo se sabría cuáles).
+
+<!-- OVERLAP_START -->
+**Comprobación de solapamiento de pacientes con Wälchli** (`experiments/25_overlap_check.py`; `tablas/overlap_*.csv`; `results/overlap_check/25_overlap_check.png`)
+
+Se comparan clase (GBM frente a IDH nativo, LGG frente a IDH mutado), sexo y edad (tolerancia de 1 año) entre los 14 pacientes de Wälchli y los 18 de Bejarano con RNA-seq en masa. **Parejas compatibles: 5; esperadas por azar: 5.0 (p = 1.00).** 9 de los 14 pacientes de Wälchli no tienen ninguna pareja compatible, así que no pueden estar repetidos.
+
+No prueba que haya o no solapamiento (con 14 y 18 pacientes hay parejas compatibles por azar); señala a quién preguntar:
+
+| paciente_walchli | paciente_bejarano | clase | sexo | edad_walchli | edad_bejarano | dif_edad |
+|---|---|---|---|---|---|---|
+| GBM1 | GBM123 | GBM | M | 71.000 | 70 | 1.000 |
+| GBM6 | GBM149 | GBM | M | 60.000 | 59 | 1.000 |
+| GBM8 | GBM159 | GBM | M | 48.000 | 49 | 1.000 |
+| LGG1 | GBM144 | LGG | F | 69.000 | 70 | 1.000 |
+| LGG2 | GBM141 | LGG | M | 46.000 | 47 | 1.000 |
+<!-- OVERLAP_END -->
+
+### 4.16 ¿Cuántos genes hacen falta? (pregunta central)
+
+Se repite el modelo variando cuántos genes variables se le dan (10 a 2.000) y se mide el rendimiento por paciente en tres sitios: dentro de Wälchli, en Xie `core` y en Bejarano. Responde a la pregunta del proyecto con una curva en lugar de tres puntos (PCA-2, HVG-2000, todos los genes).
+
+<!-- GENE_BUDGET_START -->
+**Cuántos genes hacen falta** (`experiments/27_gene_budget.py`; `tablas/gene_budget_summary.csv`; figuras `results/gene_budget/27_gene_budget_*.png`). AUROC por paciente (media de las semillas) con n genes variables:
+
+*Wälchli (dejar un paciente fuera)* (14 pacientes):
+
+| n genes | HVG-n | PCA-2 | PCA-5 | PCA-10 |
+|---|---|---|---|---|
+| 10 | 0.340 | 0.500 | 0.340 | -- |
+| 25 | 0.576 | 0.500 | 0.583 | 0.576 |
+| 50 | 0.611 | 0.528 | 0.528 | 0.611 |
+| 100 | 0.743 | 0.590 | 0.708 | 0.743 |
+| 250 | 0.903 | 0.625 | 0.854 | 0.889 |
+| 500 | 0.917 | 0.458 | 0.882 | 0.917 |
+| 1000 | 0.917 | 0.674 | 0.875 | 0.931 |
+| 2000 | 0.910 | 0.868 | 0.840 | 0.896 |
+
+*Xie core (6 pacientes)* (6 pacientes):
+
+| n genes | HVG-n | PCA-2 | PCA-5 | PCA-10 |
+|---|---|---|---|---|
+| 10 | 0.556 | 0.852 | 0.926 | -- |
+| 25 | 0.556 | 0.556 | 0.667 | 0.593 |
+| 50 | 0.963 | 0.630 | 0.926 | 0.963 |
+| 100 | 1.000 | 0.259 | 1.000 | 1.000 |
+| 250 | 1.000 | 0.148 | 1.000 | 1.000 |
+| 500 | 1.000 | 0.407 | 1.000 | 1.000 |
+| 1000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| 2000 | 1.000 | 1.000 | 1.000 | 1.000 |
+
+*Bejarano (18, RNA-seq en masa)* (18 pacientes):
+
+| n genes | HVG-n | PCA-2 | PCA-5 | PCA-10 |
+|---|---|---|---|---|
+| 10 | 0.567 | 0.429 | 0.433 | -- |
+| 25 | 0.667 | 0.442 | 0.628 | 0.610 |
+| 50 | 0.970 | 0.602 | 0.957 | 0.965 |
+| 100 | 0.961 | 0.411 | 0.996 | 0.961 |
+| 250 | 0.991 | 0.225 | 1.000 | 0.991 |
+| 500 | 1.000 | 0.558 | 1.000 | 1.000 |
+| 1000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| 2000 | 1.000 | 1.000 | 1.000 | 1.000 |
+
+Lectura: ver la figura; es un barrido descriptivo (3 semillas de paquetes, 14 pacientes de entrenamiento), sin intervalos de confianza entre pacientes.
+<!-- GENE_BUDGET_END -->
+
+### 4.17 Transferencia entre cohortes (incluye entrenar con Bejarano)
+
+Hasta ahora siempre se entrenaba con Wälchli. Aquí se prueban **todas las direcciones**: entrenar con Wälchli, con Xie `core` o con Bejarano y predecir las otras cohortes. Si el eje GBM/LGG es real y compartido, el AUROC debería mantenerse en todas las direcciones aunque el umbral se desplace; si lo que aprende el modelo es una diferencia de cohorte, solo funcionará dentro de la propia cohorte. Entrenar con Bejarano es especialmente informativo porque tiene más pacientes y edades solapadas.
+
+<!-- TRANSFER_START -->
+**Matriz de transferencia entre cohortes** (`experiments/26_transfer_matrix.py`; `tablas/transfer_matrix.csv`; figuras `results/transfer_matrix/26_*.png`). Se entrena con la cohorte de cada fila y se predice la de cada columna, sin reajustar; la diagonal es dejar un paciente fuera dentro de la cohorte.
+
+| entrena | prueba | representacion | n_pacientes | auroc | p_exacto | macro_f1_corte_05 | macro_f1_centrado | tipo |
+|---|---|---|---|---|---|---|---|---|
+| Bejarano | Bejarano | HVG | 18 | 1.000 | 0.000 | 0.833 | 0.833 | dentro de la cohorte (dejar un paciente fuera) |
+| Bejarano | Wälchli | HVG | 14 | 0.938 | 0.002 | 0.785 | 0.854 | entre cohortes |
+| Bejarano | Xie core | HVG | 6 | 1.000 | 0.050 | 1.000 | 1.000 | entre cohortes |
+| Bejarano | Xie periferia | HVG | 7 | 1.000 | 0.029 | 0.300 | 0.708 | entre cohortes |
+| Wälchli | Bejarano | HVG | 18 | 1.000 | 0.000 | 0.833 | 0.888 | entre cohortes |
+| Wälchli | Wälchli | HVG | 14 | 0.917 | 0.004 | 0.785 | 0.775 | dentro de la cohorte (dejar un paciente fuera) |
+| Wälchli | Xie core | HVG | 6 | 1.000 | 0.050 | 1.000 | 1.000 | entre cohortes |
+| Wälchli | Xie periferia | HVG | 7 | 0.917 | 0.057 | 0.300 | 0.857 | entre cohortes |
+| Xie core | Bejarano | HVG | 18 | 1.000 | 0.000 | 1.000 | 0.833 | entre cohortes |
+| Xie core | Wälchli | HVG | 14 | 0.896 | 0.006 | 0.854 | 0.785 | entre cohortes |
+| Xie core | Xie core | HVG | 6 | 1.000 | 0.050 | 1.000 | 1.000 | dentro de la cohorte (dejar un paciente fuera) |
+| Bejarano | Bejarano | PCA-5 | 18 | 0.935 | 0.001 | 0.833 | 0.833 | dentro de la cohorte (dejar un paciente fuera) |
+| Bejarano | Wälchli | PCA-5 | 14 | 0.917 | 0.004 | 0.854 | 0.854 | entre cohortes |
+| Bejarano | Xie core | PCA-5 | 6 | 1.000 | 0.050 | 1.000 | 1.000 | entre cohortes |
+| Bejarano | Xie periferia | PCA-5 | 7 | 0.917 | 0.057 | 0.300 | 0.857 | entre cohortes |
+| Wälchli | Bejarano | PCA-5 | 18 | 1.000 | 0.000 | 0.778 | 0.833 | entre cohortes |
+| Wälchli | Wälchli | PCA-5 | 14 | 0.833 | 0.021 | 0.641 | 0.708 | dentro de la cohorte (dejar un paciente fuera) |
+| Wälchli | Xie core | PCA-5 | 6 | 1.000 | 0.050 | 1.000 | 1.000 | entre cohortes |
+| Wälchli | Xie periferia | PCA-5 | 7 | 0.833 | 0.114 | 0.300 | 0.571 | entre cohortes |
+| Xie core | Bejarano | PCA-5 | 18 | 1.000 | 0.000 | 1.000 | 0.833 | entre cohortes |
+| Xie core | Wälchli | PCA-5 | 14 | 0.896 | 0.006 | 0.854 | 0.785 | entre cohortes |
+| Xie core | Xie core | PCA-5 | 6 | 1.000 | 0.050 | 1.000 | 1.000 | dentro de la cohorte (dejar un paciente fuera) |
+
+Cautelas: Xie core tiene la edad confundida con el diagnóstico; Bejarano es RNA-seq en masa; 6-18 pacientes por cohorte (p exacto mínimo limitado por el nº de pacientes).
+<!-- TRANSFER_END -->
+
+
 ---
 
 ## 5. Por qué podría pasar (hipótesis, NO verificadas)
@@ -661,7 +1021,7 @@ Promedio de la expresión log-normalizada en paquetes **disjuntos** de 25, 50 y 
 Hecho: pseudobulks de conteos, fase 1 (4.11), análisis `core` (4.7), periferia (4.7), revisión de C (4.4), PC1/PC2 y edad (4.8), bootstrap (4.9), alineación de medias, su variante sin las células del paciente evaluado, y dentro de Xie (4.10).
 
 1. **Metadatos clínicos de LGG1** (subtipo, localización, mutaciones): no están en el conjunto de datos (4.8). Pedirlos a la coautora o buscarlos en el artículo.
-2. **Separar edad y tipo de glioma:** con estos 14 pacientes no se puede (4.8) y en Xie tampoco (4.12, punto 4); haría falta una cohorte con edades solapadas entre GBM y LGG.
+2. **Separar edad y tipo de glioma:** con estos 14 pacientes no se puede (4.8) y en Xie tampoco (4.12, punto 4); haría falta una cohorte con edades solapadas entre GBM y LGG (Bejarano lo es: punto 5).
 3. **Pseudobulks de conteos: fases 1 y 2 hechas (4.11, 4.12).** Hecho: edades individuales de Xie (la edad sola separa a los pacientes y supera a la expresión en periferia y conjunto completo, 4.12 punto 4), variantes `xie_pub` y `norm_deseq_vst`. Pendiente inmediato: comprobar por qué LGG1 es el paciente que más influye (4.12).
    **De la guía:** normalización DESeq/VST ya implementada en Python y ejecutada (`norm_deseq_vst`; inspirada en el paquete de R MLSeq, que normaliza todo el conjunto a la vez, mientras que aquí se ajusta solo con el entrenamiento); aún no implementado: mediana de expresión y muestreos estratificados; componentes de varianza con modelo mixto (4.12 usa ANOVA); anotación endotelial publicada de Xie (no está en los datos descargados; `xie_pub` solo iguala el número de células). `17_pseudobulk` (promedio de log-expresión) ya está ejecutado (4.13); queda abierto reconciliar por qué la regresión de profundidad lo rompe y el adelgazamiento de conteos no.
 4. **Hechos en la v30 (resultados en 4.12):** paquetes pequeños en Xie (`small_packets`: 25-50 células por paciente bastan para conservar el orden, AUROC 1,00) y modelo con la edad quitada de los genes (`age_adjust`: la señal interna casi desaparece, AUROC 0,54-0,73; en Xie `core` se conserva el orden pero no el umbral). Sin resolver la confusión con la edad.
@@ -716,13 +1076,19 @@ Datos: portal del laboratorio (`joycelab.shinyapps.io/braintime`; "RNA-seq and s
 4. **18 pacientes**, de nuevo pocos; una cohorte más reforzaría.
 5. La edad sigue sin estar totalmente equilibrada: por debajo de 49 años solo hay IDH mutado y por encima de 73 solo GBM; la edad sola da 0,77.
 
-**Siguiente paso razonable:** la transferencia inversa (entrenar con Bejarano, predecir los 21 pacientes de Wälchli y Xie) y, si funciona, un modelo con las tres cohortes dejando una fuera cada vez.
+**Siguiente paso:** la transferencia inversa (entrenar con Bejarano, predecir Wälchli y Xie) y las demás direcciones están en 4.17 (`experiments/26_transfer_matrix.py`); la comprobación de pacientes comunes, en 4.15; y la curva de cuántos genes hacen falta, en 4.16. Figuras de este apartado: `results/bejarano_bulk/23_bejarano_probability_vs_age.png`, `23_bejarano_auroc_by_mode.png` y `23_bejarano_roc.png` (se regeneran con `--replot`). Si más adelante se quisiera un modelo con las tres cohortes dejando una fuera cada vez, la matriz de 4.17 es el punto de partida.
 
 
 **Comprobaciones previas (la 1 y la 3 resueltas; la 2 sigue abierta):**
 1. Si los **conteos de las muestras en masa son descargables** del portal (`joycelab.shinyapps.io/braintime`) por muestra.
-2. Si **algún paciente coincide con los de Wälchli** (comparar edad, sexo y diagnóstico con nuestros 14; LGG1 tiene 69 años y no coincide con ninguno de los IDH mutado de esta tabla, 70 y 73).
+2. Si **algún paciente coincide con los de Wälchli** (comparar edad, sexo y diagnóstico con nuestros 14; LGG1 tiene 69 años y no coincide con ninguno de los IDH mutado de esta tabla, 70 y 73). **Comprobación hecha en 4.15** (con sexo, además de edad y clase); se mantiene el supuesto de que no hay pacientes comunes hasta que lo confirmen los autores.
 3. Diferencias de plataforma: RNA-seq en masa de células ordenadas (STAR + RSEM) frente a scRNA-seq 3' de 10x; el efecto de estudio ya es total entre Wälchli y Xie (4.11). Se puede esperar que se conserve el orden y falle el umbral; se vería con el AUROC.
+
+**Pendiente tras la v39:**
+- **Ejecutar y revisar** `24_pc_genes`, `25_overlap_check`, `27_gene_budget`, `26_transfer_matrix` y `28_cohort_overview` con los datos reales (sus secciones 4.14-4.17 se rellenan solas al ejecutarlos) y leer los resultados antes de citarlos: son análisis nuevos y no se han interpretado todavía.
+- **Preguntar a los autores de Bejarano** si hay pacientes comunes con Wälchli (4.15) y si reutilizan datos de GBM de otros estudios.
+- **Biología de las componentes:** pasar las listas de 4.14 por enriquecimiento de rutas y tipos celulares y contrastarlas con lo conocido del endotelio en glioma.
+- **Edad de LGG1 y metadatos clínicos** (punto 1) y la discrepancia de la edad media de los LGG de Xie (49,3 en el texto frente a 38,7 en la tabla).
 
 ---
 
@@ -780,6 +1146,17 @@ Configuraciones: `demo` (comprueba que todo funciona; no sacar conclusiones), `m
 .\.venv\Scripts\python.exe -m experiments.15_align_external --config configs/full.yaml --bundle models/full_tuned/bundle.joblib --out results/external_xie_aligned --loo
 .\.venv\Scripts\python.exe -m experiments.16_age_check
 
+# validación con Bejarano (RNA-seq en masa; datos en data/bejarano/) y sus figuras; --replot solo regenera las figuras
+.\.venv\Scripts\python.exe -m experiments.23_bejarano_bulk --config configs/full.yaml
+.\.venv\Scripts\python.exe -m experiments.23_bejarano_bulk --config configs/full.yaml --replot
+
+# explicabilidad, solapamiento, cuántos genes hacen falta, transferencia entre cohortes y visión de conjunto (rellenan 4.14-4.17 del README)
+.\.venv\Scripts\python.exe -m experiments.24_pc_genes --config configs/full.yaml
+.\.venv\Scripts\python.exe -m experiments.25_overlap_check --config configs/full.yaml
+.\.venv\Scripts\python.exe -m experiments.27_gene_budget --config configs/full.yaml
+.\.venv\Scripts\python.exe -m experiments.26_transfer_matrix --config configs/full.yaml
+.\.venv\Scripts\python.exe -m experiments.28_cohort_overview --config configs/full.yaml
+
 # diagnóstico de estudio (batch): numérico + gráficas 09, 10, 11
 .\.venv\Scripts\python.exe -m experiments.11_batch --config configs/full.yaml --xie data/xie/xie_endothelial.h5ad --bundle models/full_tuned/bundle.joblib --out results/batch
 ```
@@ -788,5 +1165,7 @@ Si el estudio externo no trae `nCount_RNA` / `nFeature_RNA` ni conteos crudos, e
 
 ### Archivos de resultados (`results/<modo>/`, no versionados)
 `01_cohort.png`, `02_pca_variance.png`, `03_confusion_*.png`, `04_components_vs_performance_*.png`, `05_per_patient_*.png`, `06_components_vs_performance_seeds_*.png`, `07_by_cluster_*.png`, `08_permutation_*.png`, `permutation_results_*.csv`, `results_*.csv`, `summary_*.md`, `summary.json`, `run_metadata.json`, `splits/`, `tuning/` (validación anidada). En `results/batch/`: `09_batch_model_space.png`, `10_batch_joint_pca.png`, `11_batch_domain_classifier.png`, `batch_domain_results.csv/.md`, `batch_domain_per_patient.csv`, `batch_pca_eta2.csv`, `batch_model_space_summary.csv`. Además: `results/pc_meaning/` (`12_pc_by_patient.png`, `patients_metadata_pcs.csv`, `pc_correlations.csv`), `results/bootstrap/` (`13_bootstrap_ci.png`, `bootstrap_ci.csv`), `results/external_xie_core/`, `results/external_xie_aligned/`, `results/within_xie/`, `results/pseudobulk/` (promediados: `17_pseudobulk.png`, `pseudobulk_*_summary.csv/.md`, `runs/`) y `results/pseudobulk_counts/` (conteos: `xie_audit.csv`, `pseudobulk_configuration_grid.csv`, `pseudobulk_seed_sensitivity.csv`, `internal_patient_predictions.csv`, `xie_core_predictions.csv`, `xie_periphery_predictions.csv`, `packet_stability_results.csv/_cohort.csv`, `pseudobulk_coverage_matrix.csv`, `permutation_results.csv`, `patient_bootstrap_results.csv`, `study_/site_classifier_results.csv`, `age_only_results.csv`, `composition_only_results.csv`, `comparison_cell_vs_pseudobulk.csv/.md`, figuras `21_*.png`, `run_metadata.json`).
+
+Carpetas nuevas (v39): `results/bejarano_bulk/` (`23_*.png`), `results/pc_genes/` (`24_*.png`, `pc_*.csv`, `classifier_gene_drivers.csv`), `results/overlap_check/` (`25_overlap_check.png`, `overlap_*.csv`), `results/transfer_matrix/` (`26_*.png`, `transfer_matrix.csv`), `results/gene_budget/` (`27_*.png`, `gene_budget_*.csv`) y `results/cohort_overview/` (`28_*.png`, `cohort_summary.csv`). El índice completo de figuras está en 0.3.
 
 **Descripciones de las gráficas:** cada `.png` tiene un `.txt` con el mismo nombre en la carpeta `descriptions/` de su resultado (p. ej. `results/full/descriptions/01_cohort.txt`). Explica qué expresa la gráfica y da sus cifras clave, calculadas de los propios datos. Se generan al crear la figura y se regeneran con `experiments.replot`.
