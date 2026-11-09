@@ -1,0 +1,4 @@
+21_pseudobulk_pca.png
+Qué expresa: PC1 y PC2 de los pseudobulks de 100 células tras TMM y log-CPM, con la PCA ajustada solo con Wälchli y Xie proyectado. Izquierda, coloreado por diagnóstico (círculo Wälchli, triángulo Xie); derecha, por estudio y sitio (núcleo/periferia).
+
+PC1 media: Wälchli -0.00, Xie 2.06; PC2 media: Wälchli 0.00, Xie 9.80. Si los triángulos se separan de los círculos, el efecto de estudio persiste con pseudobulks.

@@ -1,0 +1,4 @@
+21_cells_per_pseudobulk.png
+Qué expresa: nº de células endoteliales de cada espécimen (azul Wälchli = paciente, naranja Xie = muestra), en escala logarítmica; la línea es el mínimo de 100 células.
+
+Mínimo 264 células (GBM1), máximo 18267; 2 especímenes con menos de 500 células (no admiten paquetes de 500).

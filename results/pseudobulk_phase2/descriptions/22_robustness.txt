@@ -1,0 +1,4 @@
+22_robustness.png
+Macro-F1 en Xie `core` (6 pacientes, modelo congelado entrenado con Wälchli) para cada variante del análisis: tipo de modelo, forma de los paquetes, igualación de profundidad, genes comunes y eliminación de genes que distinguen los estudios.
+Cada punto es la media de las semillas; la línea gris marca 0,9. Eje X: macro-F1; eje Y: variante. Tres símbolos por variante: HVG-2000, PCA-5 y PCA-2.
+Con 6 pacientes cada paciente mal clasificado baja el macro-F1 en unos 0,17, así que las diferencias pequeñas no son interpretables.

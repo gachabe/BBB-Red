@@ -1,0 +1,6 @@
+21_cell_vs_pseudobulk.png
+Qué expresa: macro-F1 (por paciente) del análisis a nivel de célula (ya existente) frente al de pseudobulks de conteos, por representación y para tres evaluaciones: validación interna en Wälchli, Xie solo núcleo y Xie completo. Línea punteada: 0,5.
+
+Internal (Walchli): PCA-2 célula 0.74 / pseudobulk 0.80; PCA-5 célula 0.70 / pseudobulk 0.65; PCA-10 célula 0.67 / pseudobulk 0.77; PCA-20 célula 0.65 / pseudobulk 0.81; HVG-2000 célula 0.71 / pseudobulk 0.80; All genes célula 0.71 / pseudobulk 0.81
+Xie core: PCA-2 célula 0.70 / pseudobulk 1.00; PCA-5 célula 0.84 / pseudobulk 1.00; PCA-10 célula 0.80 / pseudobulk 1.00; PCA-20 célula 0.78 / pseudobulk 1.00; HVG-2000 célula 0.81 / pseudobulk 1.00; All genes célula 0.82 / pseudobulk 0.97
+Xie full: PCA-2 célula 0.55 / pseudobulk 0.30; PCA-5 célula 0.58 / pseudobulk 0.64; PCA-10 célula 0.59 / pseudobulk 0.71; PCA-20 célula 0.55 / pseudobulk 0.71; HVG-2000 célula 0.57 / pseudobulk 0.71; All genes célula 0.54 / pseudobulk 0.30

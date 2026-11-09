@@ -1,0 +1,9 @@
+21_expression_vs_composition_age.png
+Qué expresa: AUROC por paciente (validación interna en Wälchli, media entre semillas) de expresión sola, composición celular sola, edad sola y combinaciones. Sirve para ver si la expresión aporta algo más que la composición o la edad. Línea punteada: 0,5.
+
+Composition: composición + expresión: PCA-2 0.93, PCA-5 0.84, PCA-10 0.90, PCA-20 0.91, HVG-2000 0.91, All genes 0.92
+Composition: composición sola: extra 0.68
+Composition: expresión sola: PCA-2 0.87, PCA-5 0.84, PCA-10 0.90, PCA-20 0.91, HVG-2000 0.91, All genes 0.92
+Age: edad + expresión: PCA-2 0.86, PCA-5 0.84, PCA-10 0.90, PCA-20 0.91, HVG-2000 0.91, All genes 0.92
+Age: edad sola: extra 0.85
+Age: expresión sola: PCA-2 0.87, PCA-5 0.84, PCA-10 0.90, PCA-20 0.91, HVG-2000 0.91, All genes 0.92

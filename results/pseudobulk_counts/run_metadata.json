@@ -1,0 +1,75 @@
+{
+  "git_commit": "76beddd31c366d4a1d6ce4749b8e6a65e61ecccc",
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "sizes": [
+    50,
+    100,
+    250,
+    500,
+    "whole"
+  ],
+  "replicates": 20,
+  "primary": {
+    "size": 100,
+    "aggregation": "mean",
+    "external": "core"
+  },
+  "components": [
+    2,
+    5,
+    10,
+    20
+  ],
+  "hvg": 2000,
+  "min_cells_whole": 100,
+  "gene_filter": "CPM>1 en >=25% de los pseudobulks de entrenamiento",
+  "normalization": "TMM (referencia de entrenamiento) + log2-CPM (prior 2)",
+  "model": "LogisticRegression(L2, class_weight=balanced, liblinear, C=1), peso 1/R por paciente",
+  "endothelial_definition": "selección por marcadores (published: no disponible)",
+  "patients_walchli": [
+    "GBM1",
+    "GBM2",
+    "GBM3",
+    "GBM4",
+    "GBM5",
+    "GBM6",
+    "GBM7",
+    "GBM8",
+    "LGG1",
+    "LGG2",
+    "LGG3",
+    "LGG4",
+    "LGG5",
+    "LGG6"
+  ],
+  "patients_xie": [
+    "P027",
+    "P036",
+    "P037",
+    "P038",
+    "P043",
+    "P045",
+    "P046"
+  ],
+  "specimens_xie": [
+    "N027",
+    "N036",
+    "N037",
+    "N038",
+    "N043",
+    "N045",
+    "N046",
+    "T027",
+    "T037",
+    "T038",
+    "T043",
+    "T045",
+    "T046"
+  ]
+}

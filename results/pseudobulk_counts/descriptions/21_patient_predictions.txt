@@ -1,0 +1,11 @@
+21_patient_predictions.png
+Qué expresa: probabilidad de GBM por paciente (media de sus paquetes de 100 células; barra = ±1 desviación típica entre paquetes). Arriba, validación interna en Wälchli; abajo, Xie solo núcleo con el modelo congelado. Naranja = GBM, verde = LGG; línea punteada = umbral 0,5.
+
+Walchli LOPO, PCA-2: mal clasificados: GBM8 (P=0.08), GBM7 (P=0.17)
+Xie core, PCA-2: todos bien clasificados
+Walchli LOPO, PCA-5: mal clasificados: LGG6 (P=0.96), LGG1 (P=0.74), GBM8 (P=0.02), GBM6 (P=0.03)
+Xie core, PCA-5: todos bien clasificados
+Walchli LOPO, PCA-10: mal clasificados: LGG6 (P=0.94), GBM8 (P=0.32)
+Xie core, PCA-10: todos bien clasificados
+Walchli LOPO, PCA-20: mal clasificados: LGG6 (P=0.93), GBM8 (P=0.32)
+Xie core, PCA-20: todos bien clasificados

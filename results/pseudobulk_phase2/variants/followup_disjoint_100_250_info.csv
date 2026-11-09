@@ -1,0 +1,4 @@
+n_genes,n_cells_median_w,lib_median_w,n_cells_median_x,lib_median_x,thin_target,n_infeasible_w,n_infeasible_x,seed,variant
+26666,250.0,1747773.0,250.0,1107807.0,,1,1,0,followup_disjoint_100_250
+26666,250.0,1738228.0,250.0,1105367.0,,1,1,1,followup_disjoint_100_250
+26666,250.0,1746933.0,250.0,1102583.0,,1,1,2,followup_disjoint_100_250

@@ -6,7 +6,6 @@ data/raw/*
 data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
-results/*/
 !results/.gitkeep
 models/*
 !models/.gitkeep
@@ -16,7 +15,11 @@ data/xie_core/*
 data/xie_min1500/*
 
 data/xie_periph/
-results/*.log
-results/*.txt
 
 data/bejarano/
+*.joblib
+*.pkl
+*.npy
+*.npz
+*.log
+*.h5ad

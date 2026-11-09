@@ -1,0 +1,4 @@
+n_genes,n_cells_median_w,lib_median_w,n_cells_median_x,lib_median_x,thin_target,n_infeasible_w,n_infeasible_x,seed,variant
+26666,65.0,377735.0,81.0,377547.5,,0,0,0,followup_umi_150k_250
+26666,64.0,377633.0,81.0,378044.0,,0,0,1,followup_umi_150k_250
+26666,66.5,377544.5,80.5,377731.5,,0,0,2,followup_umi_150k_250

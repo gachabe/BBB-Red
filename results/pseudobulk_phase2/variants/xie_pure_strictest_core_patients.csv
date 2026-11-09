@@ -1,0 +1,109 @@
+representation,patient,y,p_mean,seed,variant
+All genes,P027,0,0.0016210242774753777,0,xie_pure_strictest
+All genes,P037,0,0.0026518830852102753,0,xie_pure_strictest
+All genes,P038,1,0.8848108729417419,0,xie_pure_strictest
+All genes,P043,0,0.024527394617536856,0,xie_pure_strictest
+All genes,P045,1,0.5654368190879622,0,xie_pure_strictest
+All genes,P046,1,0.9968359471488375,0,xie_pure_strictest
+HVG-2000,P027,0,0.00438180169036924,0,xie_pure_strictest
+HVG-2000,P037,0,0.01240312932304401,0,xie_pure_strictest
+HVG-2000,P038,1,0.9632206731199331,0,xie_pure_strictest
+HVG-2000,P043,0,0.027632051675973733,0,xie_pure_strictest
+HVG-2000,P045,1,0.6646259105764754,0,xie_pure_strictest
+HVG-2000,P046,1,0.9983242621126998,0,xie_pure_strictest
+PCA-10,P027,0,0.0050782628764813485,0,xie_pure_strictest
+PCA-10,P037,0,0.012660902214211872,0,xie_pure_strictest
+PCA-10,P038,1,0.9669995928048847,0,xie_pure_strictest
+PCA-10,P043,0,0.025151544582560685,0,xie_pure_strictest
+PCA-10,P045,1,0.6557225459266045,0,xie_pure_strictest
+PCA-10,P046,1,0.9984063620667112,0,xie_pure_strictest
+PCA-2,P027,0,0.00798953618779607,0,xie_pure_strictest
+PCA-2,P037,0,0.0048902274644239945,0,xie_pure_strictest
+PCA-2,P038,1,0.8394502599345188,0,xie_pure_strictest
+PCA-2,P043,0,0.008193939965535487,0,xie_pure_strictest
+PCA-2,P045,1,0.6471027954820885,0,xie_pure_strictest
+PCA-2,P046,1,0.962677911039432,0,xie_pure_strictest
+PCA-20,P027,0,0.004423811061479958,0,xie_pure_strictest
+PCA-20,P037,0,0.012927951511578304,0,xie_pure_strictest
+PCA-20,P038,1,0.9654046303961114,0,xie_pure_strictest
+PCA-20,P043,0,0.02886633807331838,0,xie_pure_strictest
+PCA-20,P045,1,0.6592731910117465,0,xie_pure_strictest
+PCA-20,P046,1,0.9983409729497245,0,xie_pure_strictest
+PCA-5,P027,0,2.523542992504168e-05,0,xie_pure_strictest
+PCA-5,P037,0,8.014162114003992e-05,0,xie_pure_strictest
+PCA-5,P038,1,0.9933749199679685,0,xie_pure_strictest
+PCA-5,P043,0,5.641992107455277e-05,0,xie_pure_strictest
+PCA-5,P045,1,0.9016174243697698,0,xie_pure_strictest
+PCA-5,P046,1,0.9999878402410742,0,xie_pure_strictest
+All genes,P027,0,0.001322822350875755,1,xie_pure_strictest
+All genes,P037,0,0.003453069035990048,1,xie_pure_strictest
+All genes,P038,1,0.8536714465862307,1,xie_pure_strictest
+All genes,P043,0,0.026919584630224914,1,xie_pure_strictest
+All genes,P045,1,0.550867780506426,1,xie_pure_strictest
+All genes,P046,1,0.9978232619485322,1,xie_pure_strictest
+HVG-2000,P027,0,0.003856347636343416,1,xie_pure_strictest
+HVG-2000,P037,0,0.016003499472742374,1,xie_pure_strictest
+HVG-2000,P038,1,0.9497207678604115,1,xie_pure_strictest
+HVG-2000,P043,0,0.03252068813776364,1,xie_pure_strictest
+HVG-2000,P045,1,0.5853392557108409,1,xie_pure_strictest
+HVG-2000,P046,1,0.9985232984049578,1,xie_pure_strictest
+PCA-10,P027,0,0.0043173054024161685,1,xie_pure_strictest
+PCA-10,P037,0,0.01671051125056312,1,xie_pure_strictest
+PCA-10,P038,1,0.9555231106218063,1,xie_pure_strictest
+PCA-10,P043,0,0.026246652581425993,1,xie_pure_strictest
+PCA-10,P045,1,0.572285401424724,1,xie_pure_strictest
+PCA-10,P046,1,0.9985996987089243,1,xie_pure_strictest
+PCA-2,P027,0,0.005135068630939435,1,xie_pure_strictest
+PCA-2,P037,0,0.003378590934662545,1,xie_pure_strictest
+PCA-2,P038,1,0.8140317707245567,1,xie_pure_strictest
+PCA-2,P043,0,0.005666377098091502,1,xie_pure_strictest
+PCA-2,P045,1,0.6433118282634108,1,xie_pure_strictest
+PCA-2,P046,1,0.9698456033815063,1,xie_pure_strictest
+PCA-20,P027,0,0.0037620776088662057,1,xie_pure_strictest
+PCA-20,P037,0,0.016073755165660748,1,xie_pure_strictest
+PCA-20,P038,1,0.9495987623683855,1,xie_pure_strictest
+PCA-20,P043,0,0.033156817237971994,1,xie_pure_strictest
+PCA-20,P045,1,0.5814593080846497,1,xie_pure_strictest
+PCA-20,P046,1,0.9985504720364766,1,xie_pure_strictest
+PCA-5,P027,0,2.4276895123503934e-05,1,xie_pure_strictest
+PCA-5,P037,0,0.00016352499548525406,1,xie_pure_strictest
+PCA-5,P038,1,0.9778811582671206,1,xie_pure_strictest
+PCA-5,P043,0,7.440081237972086e-05,1,xie_pure_strictest
+PCA-5,P045,1,0.8738486570968931,1,xie_pure_strictest
+PCA-5,P046,1,0.9999942181814048,1,xie_pure_strictest
+All genes,P027,0,0.001172471565793264,2,xie_pure_strictest
+All genes,P037,0,0.0025125439760507614,2,xie_pure_strictest
+All genes,P038,1,0.8896921445231254,2,xie_pure_strictest
+All genes,P043,0,0.023829095447508088,2,xie_pure_strictest
+All genes,P045,1,0.5555646368244831,2,xie_pure_strictest
+All genes,P046,1,0.9967350684666597,2,xie_pure_strictest
+HVG-2000,P027,0,0.003118444263446229,2,xie_pure_strictest
+HVG-2000,P037,0,0.01255037225357326,2,xie_pure_strictest
+HVG-2000,P038,1,0.9611050687574766,2,xie_pure_strictest
+HVG-2000,P043,0,0.037525663058311044,2,xie_pure_strictest
+HVG-2000,P045,1,0.6290617167557712,2,xie_pure_strictest
+HVG-2000,P046,1,0.9980795592199968,2,xie_pure_strictest
+PCA-10,P027,0,0.003623850166398024,2,xie_pure_strictest
+PCA-10,P037,0,0.01350833750887663,2,xie_pure_strictest
+PCA-10,P038,1,0.9661909516129759,2,xie_pure_strictest
+PCA-10,P043,0,0.03585989114798872,2,xie_pure_strictest
+PCA-10,P045,1,0.6205750628176123,2,xie_pure_strictest
+PCA-10,P046,1,0.9981831167514589,2,xie_pure_strictest
+PCA-2,P027,0,0.014767039873811758,2,xie_pure_strictest
+PCA-2,P037,0,0.011038315573800417,2,xie_pure_strictest
+PCA-2,P038,1,0.8274004731238687,2,xie_pure_strictest
+PCA-2,P043,0,0.018628632631248185,2,xie_pure_strictest
+PCA-2,P045,1,0.6368817270756311,2,xie_pure_strictest
+PCA-2,P046,1,0.9497137030957072,2,xie_pure_strictest
+PCA-20,P027,0,0.002972086381590455,2,xie_pure_strictest
+PCA-20,P037,0,0.012491214093551313,2,xie_pure_strictest
+PCA-20,P038,1,0.9619740991336215,2,xie_pure_strictest
+PCA-20,P043,0,0.03911258122496698,2,xie_pure_strictest
+PCA-20,P045,1,0.6346592404655168,2,xie_pure_strictest
+PCA-20,P046,1,0.998103949171864,2,xie_pure_strictest
+PCA-5,P027,0,1.9599983507507196e-05,2,xie_pure_strictest
+PCA-5,P037,0,7.123655691328795e-05,2,xie_pure_strictest
+PCA-5,P038,1,0.9964992116379487,2,xie_pure_strictest
+PCA-5,P043,0,7.795401462738698e-05,2,xie_pure_strictest
+PCA-5,P045,1,0.8784798693416371,2,xie_pure_strictest
+PCA-5,P046,1,0.9999848703335974,2,xie_pure_strictest

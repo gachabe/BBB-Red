@@ -1,0 +1,8 @@
+patient,paper_patient_number,histology,sex,age,recurrence,idh_status,codeletion_1p19q,location,p_gbm_age_model_walchli,y
+P027,1,LGG,Female,28,Primary,mutant,Non-codel,Bilateral frontal corpus callosum,0.18347649282372996,0
+P036,2,GBM,Female,59,Primary,wild-type,Non-codel,Bilateral frontal lobes,0.6226770913645197,1
+P037,3,LGG,Male,40,Primary,mutant,,Right temporal lobe,0.32714232998298387,0
+P043,4,LGG,Female,48,Primary,mutant,,Left temporal lobe,0.4485367182034642,0
+P038,5,GBM,Male,56,Primary,wild-type,Non-codel,"Left temporal occipital lobe, left posterior horn of ventricle",0.5763894554590648,1
+P045,6,GBM,Female,60,Primary,wild-type,Non-codel,Right temporal lobe,0.6376654811814824,1
+P046,7,GBM,Female,70,Primary,wild-type,Non-codel,Left frontal lobe,0.7700224845298819,1

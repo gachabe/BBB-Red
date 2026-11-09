@@ -1,0 +1,4 @@
+n_genes,n_cells_median_w,lib_median_w,n_cells_median_x,lib_median_x,thin_target,n_infeasible_w,n_infeasible_x,seed,variant
+26666,100.0,587938.0,100.0,499668.5,,0,0,0,xie_top25
+26666,100.0,578568.0,100.0,498244.5,,0,0,1,xie_top25
+26666,100.0,581493.0,100.0,492855.0,,0,0,2,xie_top25

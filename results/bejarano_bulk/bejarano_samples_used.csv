@@ -1,0 +1,19 @@
+Sample_ID,patient,Disease,age,sex,diagnosis_who
+GBM116.CD31.20191112.LB,GBM116,IDH mut glioma,73,M,Astrocytoma WHO grade 2
+GBM118.CD31.20191206.LB,GBM118,IDH WT glioblastoma,65,F,"GBM WHO grade 4, subclass RTKII and mesenchymal"
+GBM126.CD31.20200218.LB,GBM126,IDH WT glioblastoma,64,M,GBM WHO grade 4
+GBM133.CD31.20200622.LB,GBM133,IDH WT glioblastoma,54,F,GBM WHO grade 4
+GBM134.CD31.tumor.20200709.LB,GBM134,IDH mut glioma,36,M,Astrocytoma WHO grade 2
+GBM141.CD31.20200826.LB,GBM141,IDH mut glioma,47,M,Oligodendroglioma WHO grade 3
+GBM142.CD31.20200928.LB,GBM142,IDH mut glioma,49,F,Oligodendroglioma WHO grade 2
+GBM121.CD31,GBM121,IDH mut glioma,40,F,Oligodendroglioma WHO grade 2
+GBM123.CD31,GBM123,IDH WT glioblastoma,70,M,GBM WHO grade 4
+GBM146.CD31.20201028.LB,GBM146,IDH WT glioblastoma,64,M,GBM WHO grade 4
+GBM160.CD31.20210127.LB,GBM160,IDH mut glioma,51,M,Astrocytoma WHO grade 2
+GBM165.CD31.20210218.LB,GBM165,IDH WT glioblastoma,73,M,GBM WHO grade 4
+GBM145.CD31.20201027.LB,GBM145,IDH WT glioblastoma,86,F,GBM WHO grade 4
+GBM149.CD31.20201118.LB,GBM149,IDH WT glioblastoma,59,M,GBM WHO grade 4
+GBM144.CD31.20201023.LB,GBM144,IDH mut glioma,70,F,Astrocytoma WHO Grade 2
+GBM159.CD31.20210122.LB,GBM159,IDH WT glioblastoma,49,M,GBM WHO grade 4
+GBM151.BrM132.CD31.20201202.LB,GBM151,IDH WT glioblastoma,76,M,GBM WHO grade 4
+GBM174.CD31.20210416.LB,GBM174,IDH WT glioblastoma,66,F,GBM WHO grade 4

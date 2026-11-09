@@ -1,0 +1,4 @@
+22_training_subsample.png
+Distribución del macro-F1 en Xie `core` cuando el modelo se entrena con subconjuntos aleatorios de 10 de los 14 pacientes de Wälchli (6 GBM y 4 LGG), 100 subconjuntos distintos.
+Cada panel es una representación; eje X: macro-F1 (con 6 pacientes solo toma unos pocos valores); eje Y: número de subconjuntos. Si casi todos están en 1,0 el resultado no depende de qué pacientes se usan.
+Los subconjuntos comparten pacientes entre sí, así que no son independientes.

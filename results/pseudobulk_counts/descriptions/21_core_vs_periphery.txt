@@ -1,0 +1,6 @@
+21_core_vs_periphery.png
+Qué expresa: AUROC por paciente en Xie con el modelo congelado (paquetes de 100 células), solo núcleo, solo periferia y todo (media de las muestras del paciente). Línea punteada: 0,5 (azar). Los conjuntos de pacientes difieren (núcleo 6, periferia 7).
+
+xie_core: PCA-2 1.00, PCA-5 1.00, PCA-10 1.00, PCA-20 1.00, HVG-2000 1.00, All genes 1.00
+xie_periphery: PCA-2 0.90, PCA-5 0.82, PCA-10 0.88, PCA-20 0.88, HVG-2000 0.90, All genes 0.92
+xie_all: PCA-2 1.00, PCA-5 1.00, PCA-10 1.00, PCA-20 1.00, HVG-2000 1.00, All genes 1.00

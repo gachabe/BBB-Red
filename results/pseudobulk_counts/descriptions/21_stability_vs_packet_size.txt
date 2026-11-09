@@ -1,0 +1,9 @@
+21_stability_vs_packet_size.png
+Qué expresa: izquierda, desviación típica mediana (entre pacientes) de la probabilidad de GBM de sus paquetes réplica, según el tamaño del paquete; la línea punteada es el umbral 0,05 de la guía. Derecha, correlación intraclase de las probabilidades de los paquetes dentro de cada paciente (cerca de 1 = los paquetes de un paciente dicen lo mismo). Semilla 0, validación interna.
+
+All genes: SD mediana 50: 0.024, 100: 0.007, 250: 0.003, 500: 0.002; ICC 50: 0.98, 100: 0.99, 250: 1.00, 500: 1.00
+HVG-2000: SD mediana 50: 0.016, 100: 0.006, 250: 0.004, 500: 0.008; ICC 50: 0.98, 100: 0.98, 250: 0.99, 500: 1.00
+PCA-10: SD mediana 50: 0.016, 100: 0.006, 250: 0.003, 500: 0.007; ICC 50: 0.98, 100: 0.98, 250: 0.99, 500: 1.00
+PCA-2: SD mediana 50: 0.023, 100: 0.025, 250: 0.021, 500: 0.010; ICC 50: 0.95, 100: 0.97, 250: 0.97, 500: 0.99
+PCA-20: SD mediana 50: 0.015, 100: 0.006, 250: 0.004, 500: 0.008; ICC 50: 0.98, 100: 0.98, 250: 0.99, 500: 1.00
+PCA-5: SD mediana 50: 0.020, 100: 0.002, 250: 0.000, 500: 0.000; ICC 50: 0.98, 100: 0.97, 250: 1.00, 500: 1.00

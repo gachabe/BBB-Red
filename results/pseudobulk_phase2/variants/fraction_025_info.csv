@@ -1,0 +1,4 @@
+n_genes,n_cells_median_w,lib_median_w,n_cells_median_x,lib_median_x,thin_target,n_infeasible_w,n_infeasible_x,seed,variant
+26666,937.0,4206296.5,1557.0,7431139.5,,0,0,0,fraction_025
+26666,937.0,4200912.5,1557.0,7458351.0,,0,0,1,fraction_025
+26666,937.0,4220680.0,1557.0,7475463.5,,0,0,2,fraction_025
