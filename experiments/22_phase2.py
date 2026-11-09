@@ -153,11 +153,12 @@ def run_variant(S, rom, spec: dict, seed: int) -> dict:
     model = spec.get("model", "lr")
     rom = {**rom, **({"hvg": spec["hvg"]} if spec.get("hvg") else {}), **spec.get("rom", {})}
     mw, y, W, A = b["mw"], b["y"], b["W"], b["A"]
-    adj = bool(spec.get("age_adjust"))                       # quita la pendiente con la edad de los genes (ajustada solo con entrenamiento)
+    adj = bool(spec.get("age_adjust"))                       # quita la pendiente con la edad de los genes (ajustada solo con entrenamiento); "dx": dentro de cada diagnóstico
+    amode = "age_adj_dx" if spec.get("age_adjust") == "dx" else "age_adj"
     ex_w = pd.to_numeric(mw["age"], errors="coerce").to_numpy(dtype=float)[:, None] if adj else None
     rows = []
     if not spec.get("skip_internal"):
-        internal = lopo(W, mw, y, rom, mode="age_adj" if adj else "expr", extra=ex_w, model=model)
+        internal = lopo(W, mw, y, rom, mode=amode if adj else "expr", extra=ex_w, model=model)
         pat = to_patient(internal, keys=("group", "representation"))
         for rep, g in pat.groupby("representation"):
             rows.append(dict(analysis="internal", representation=rep, **patient_metrics(g["y"], g["p_mean"])))
@@ -168,7 +169,7 @@ def run_variant(S, rom, spec: dict, seed: int) -> dict:
         if adj:
             amap = pd.read_csv(AGES_CSV).set_index("patient")["age"]
             ex_x = mx["patient"].map(amap).to_numpy(dtype=float)[:, None]
-        pr = predict_block(W, y, mw["patient"].to_numpy(), A, rom, mode="age_adj" if adj else "expr", Etr=ex_w, Ete=ex_x, model=model)
+        pr = predict_block(W, y, mw["patient"].to_numpy(), A, rom, mode=amode if adj else "expr", Etr=ex_w, Ete=ex_x, model=model)
         ext = pd.concat([pd.DataFrame(dict(packet=np.arange(len(mx)), patient=mx["patient"], sample=mx["sample"], site=mx["site"],
                                            y=(mx["diagnosis"] == "GBM").astype(int), representation=n, p=p)) for n, p in pr.items()], ignore_index=True)
         ext["seed"], ext["size"] = seed, spec["size"]
@@ -591,13 +592,13 @@ def stage_age_adjust(S, rom, out: Path, seeds, force=False):
     diagnóstico están confundidos, así que quita también parte del efecto del diagnóstico; un resultado nulo no es concluyente, uno que
     se mantenga sí indica señal más allá de la tendencia lineal con la edad."""
     rows = []
-    for name, spec in (("age_adjust", dict(BASE, age_adjust=True)), ("age_adjust_ref", dict(BASE))):
+    for name, spec in (("age_adjust", dict(BASE, age_adjust=True)), ("age_adjust_dx", dict(BASE, age_adjust="dx")), ("age_adjust_ref", dict(BASE))):
         m = run_named(S, rom, out, name, spec, seeds, force)
         for an in ("internal", "xie_core", "xie_all", "xie_periphery"):
             for rep in REPS_MAIN + ["All genes"]:
                 d = m[(m["analysis"] == an) & (m["representation"] == rep)]
                 if len(d):
-                    rows.append(dict(modelo="sin edad (referencia)" if name.endswith("ref") else "edad quitada de los genes", analisis=an, representacion=rep,
+                    rows.append(dict(modelo="sin edad (referencia)" if name.endswith("ref") else ("edad quitada (pendiente dentro de cada diagnóstico)" if name.endswith("dx") else "edad quitada de los genes"), analisis=an, representacion=rep,
                                      macro_f1=d["macro_f1"].mean(), auroc=d["auroc"].mean()))
     t = pd.DataFrame(rows)
     t.to_csv(out / "age_adjusted_model.csv", index=False)

@@ -1,0 +1,25 @@
+subset,model,representation,n,auroc,macro_f1,exact_p_one_sided,spearman_with_age
+core,edad sola (ranking),--,6,1.0,,0.05,
+core,"modelo de edad entrenado con Wälchli (umbral 0,5)",--,6,1.0,1.0,,
+core,expresión (modelo congelado de Wälchli),All genes,6,1.0,1.0,0.05,0.942857142857143
+core,expresión (modelo congelado de Wälchli),HVG-2000,6,1.0,1.0,0.05,0.8857142857142858
+core,expresión (modelo congelado de Wälchli),PCA-10,6,1.0,1.0,0.05,0.8857142857142858
+core,expresión (modelo congelado de Wälchli),PCA-2,6,1.0,1.0,0.05,0.8857142857142858
+core,expresión (modelo congelado de Wälchli),PCA-20,6,1.0,1.0,0.05,0.8857142857142858
+core,expresión (modelo congelado de Wälchli),PCA-5,6,1.0,1.0,0.05,0.8857142857142858
+periferia,edad sola (ranking),--,7,1.0,,0.02857142857142857,
+periferia,"modelo de edad entrenado con Wälchli (umbral 0,5)",--,7,1.0,1.0,,
+periferia,expresión (modelo congelado de Wälchli),All genes,7,0.9166666666666667,0.3,0.05714285714285714,0.6071428571428572
+periferia,expresión (modelo congelado de Wälchli),HVG-2000,7,0.9166666666666667,0.3,0.05714285714285714,0.5714285714285715
+periferia,expresión (modelo congelado de Wälchli),PCA-10,7,0.9166666666666667,0.3,0.05714285714285714,0.5714285714285715
+periferia,expresión (modelo congelado de Wälchli),PCA-2,7,0.9166666666666667,0.3,0.05714285714285714,0.5714285714285715
+periferia,expresión (modelo congelado de Wälchli),PCA-20,7,0.9166666666666667,0.3,0.05714285714285714,0.5714285714285715
+periferia,expresión (modelo congelado de Wälchli),PCA-5,7,0.8333333333333334,0.3,0.11428571428571428,0.4642857142857144
+todo (paciente),edad sola (ranking),--,7,1.0,,0.02857142857142857,
+todo (paciente),"modelo de edad entrenado con Wälchli (umbral 0,5)",--,7,1.0,1.0,,
+todo (paciente),expresión (modelo congelado de Wälchli),All genes,7,1.0,0.3,0.02857142857142857,0.8928571428571429
+todo (paciente),expresión (modelo congelado de Wälchli),HVG-2000,7,1.0,0.7083333333333333,0.02857142857142857,0.7500000000000002
+todo (paciente),expresión (modelo congelado de Wälchli),PCA-10,7,1.0,0.7083333333333333,0.02857142857142857,0.7500000000000002
+todo (paciente),expresión (modelo congelado de Wälchli),PCA-2,7,1.0,0.3,0.02857142857142857,0.8571428571428573
+todo (paciente),expresión (modelo congelado de Wälchli),PCA-20,7,1.0,0.7083333333333333,0.02857142857142857,0.7500000000000002
+todo (paciente),expresión (modelo congelado de Wälchli),PCA-5,7,1.0,0.7083333333333333,0.02857142857142857,0.8928571428571429

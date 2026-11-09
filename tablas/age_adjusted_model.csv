@@ -1,0 +1,49 @@
+modelo,analisis,representacion,macro_f1,auroc
+edad quitada de los genes,internal,PCA-2,0.485034165181224,0.5416666666666666
+edad quitada de los genes,internal,PCA-5,0.6392704517704518,0.7291666666666666
+edad quitada de los genes,internal,HVG-2000,0.6858974358974358,0.6458333333333333
+edad quitada de los genes,internal,All genes,0.6178266178266177,0.5486111111111112
+edad quitada de los genes,xie_core,PCA-2,0.8285714285714286,1.0
+edad quitada de los genes,xie_core,PCA-5,0.3333333333333333,0.888888888888889
+edad quitada de los genes,xie_core,HVG-2000,0.8857142857142857,0.9629629629629629
+edad quitada de los genes,xie_core,All genes,1.0,1.0
+edad quitada de los genes,xie_all,PCA-2,0.8444444444444444,1.0
+edad quitada de los genes,xie_all,PCA-5,0.3636363636363636,0.7500000000000001
+edad quitada de los genes,xie_all,HVG-2000,0.7083333333333334,0.6388888888888888
+edad quitada de los genes,xie_all,All genes,0.3,0.888888888888889
+edad quitada de los genes,xie_periphery,PCA-2,0.5714285714285714,0.7222222222222222
+edad quitada de los genes,xie_periphery,PCA-5,0.43611111111111106,0.6388888888888888
+edad quitada de los genes,xie_periphery,HVG-2000,0.3,0.36111111111111116
+edad quitada de los genes,xie_periphery,All genes,0.3,0.6944444444444443
+edad quitada (pendiente dentro de cada diagnóstico),internal,PCA-2,0.7083333333333334,0.7083333333333334
+edad quitada (pendiente dentro de cada diagnóstico),internal,PCA-5,0.7083333333333334,0.7986111111111112
+edad quitada (pendiente dentro de cada diagnóstico),internal,HVG-2000,0.7754010695187166,0.9097222222222223
+edad quitada (pendiente dentro de cada diagnóstico),internal,All genes,0.7754010695187166,0.8958333333333334
+edad quitada (pendiente dentro de cada diagnóstico),xie_core,PCA-2,1.0,1.0
+edad quitada (pendiente dentro de cada diagnóstico),xie_core,PCA-5,1.0,1.0
+edad quitada (pendiente dentro de cada diagnóstico),xie_core,HVG-2000,1.0,1.0
+edad quitada (pendiente dentro de cada diagnóstico),xie_core,All genes,1.0,1.0
+edad quitada (pendiente dentro de cada diagnóstico),xie_all,PCA-2,1.0,1.0
+edad quitada (pendiente dentro de cada diagnóstico),xie_all,PCA-5,1.0,1.0
+edad quitada (pendiente dentro de cada diagnóstico),xie_all,HVG-2000,1.0,1.0
+edad quitada (pendiente dentro de cada diagnóstico),xie_all,All genes,0.5916666666666667,1.0
+edad quitada (pendiente dentro de cada diagnóstico),xie_periphery,PCA-2,0.7083333333333334,1.0
+edad quitada (pendiente dentro de cada diagnóstico),xie_periphery,PCA-5,1.0,1.0
+edad quitada (pendiente dentro de cada diagnóstico),xie_periphery,HVG-2000,0.7492063492063492,1.0
+edad quitada (pendiente dentro de cada diagnóstico),xie_periphery,All genes,0.3,1.0
+sin edad (referencia),internal,PCA-2,0.7853479853479853,0.8680555555555555
+sin edad (referencia),internal,PCA-5,0.6634615384615384,0.8402777777777778
+sin edad (referencia),internal,HVG-2000,0.7823717948717949,0.9097222222222223
+sin edad (referencia),internal,All genes,0.8016562685680334,0.9236111111111112
+sin edad (referencia),xie_core,PCA-2,1.0,1.0
+sin edad (referencia),xie_core,PCA-5,1.0,1.0
+sin edad (referencia),xie_core,HVG-2000,1.0,1.0
+sin edad (referencia),xie_core,All genes,0.9428571428571427,1.0
+sin edad (referencia),xie_all,PCA-2,0.3,1.0
+sin edad (referencia),xie_all,PCA-5,0.65,1.0
+sin edad (referencia),xie_all,HVG-2000,0.7083333333333334,1.0
+sin edad (referencia),xie_all,All genes,0.3,1.0
+sin edad (referencia),xie_periphery,PCA-2,0.3,0.888888888888889
+sin edad (referencia),xie_periphery,PCA-5,0.3,0.8333333333333334
+sin edad (referencia),xie_periphery,HVG-2000,0.3,0.888888888888889
+sin edad (referencia),xie_periphery,All genes,0.3,0.9166666666666666

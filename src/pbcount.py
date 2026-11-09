@@ -269,15 +269,23 @@ class DenseReps:
         return out
 
 
-def age_residualize(Ltr, Lte, a_tr, a_te, w=None):
-    """Quita de cada gen la pendiente lineal con la edad, ajustada solo con entrenamiento (mínimos cuadrados ponderados por paquete)."""
+def age_residualize(Ltr, Lte, a_tr, a_te, w=None, z=None):
+    """Quita de cada gen la pendiente lineal con la edad, ajustada solo con entrenamiento (mínimos cuadrados ponderados por paquete).
+    z (opcional, p. ej. el diagnóstico de entrenamiento): se ajusta gen ~ edad + z y solo se quita el término de la edad, de modo que
+    la pendiente es la de dentro de cada grupo y no arrastra el efecto del diagnóstico."""
     a_tr, a_te = np.asarray(a_tr, dtype=np.float64), np.asarray(a_te, dtype=np.float64)
     assert not (np.isnan(a_tr).any() or np.isnan(a_te).any()), "faltan edades"
     w = np.ones(len(a_tr)) if w is None else np.asarray(w, dtype=np.float64)
     w = w / w.sum()
     am = float((w * a_tr).sum())
     d = a_tr - am
-    beta = (w * d) @ (Ltr - w @ Ltr) / (float((w * d * d).sum()) + 1e-9)
+    if z is None:
+        beta = (w * d) @ (Ltr - w @ Ltr) / (float((w * d * d).sum()) + 1e-9)
+    else:
+        z = np.asarray(z, dtype=np.float64).reshape(len(a_tr), -1)
+        X = np.hstack([np.ones((len(a_tr), 1)), d[:, None], z - w @ z])
+        sw = np.sqrt(w)[:, None]
+        beta = np.linalg.lstsq(sw * X, sw * Ltr, rcond=None)[0][1]
     return Ltr - np.outer(d, beta), Lte - np.outer(a_te - am, beta)
 
 
@@ -288,7 +296,7 @@ def fold_features(Ctr, Cte, rom: dict, age=None):
     tmm = norm(rom.get("min_cpm", 1.0), rom.get("min_frac", 0.25)).fit(Ctr)
     Ltr, Lte = tmm.transform(Ctr), tmm.transform(Cte)
     if age is not None:
-        Ltr, Lte = age_residualize(Ltr, Lte, age[0], age[1], age[2])
+        Ltr, Lte = age_residualize(Ltr, Lte, age[0], age[1], age[2], age[3] if len(age) > 3 else None)
     reps = DenseReps(rom["components"], rom.get("hvg", 2000), rom.get("scale_clip", 10.0)).fit(Ltr)
     return reps.transform(Ltr), reps.transform(Lte)
 
@@ -328,7 +336,7 @@ def predict_block(Ctr, ytr, ptr, Cte, rom, mode="expr", Etr=None, Ete=None, mode
     if mode == "extra":
         a, b = _extra_block(Etr, Ete)
         return {"extra": fit_model(a, ytr, w, model).predict_proba(b)[:, 1]}
-    age = (Etr[:, 0], Ete[:, 0], w) if mode == "age_adj" else None     # age_adj: la edad solo se usa para quitar su pendiente de los genes
+    age = (Etr[:, 0], Ete[:, 0], w, np.asarray(ytr, dtype=float) if mode == "age_adj_dx" else None) if mode in ("age_adj", "age_adj_dx") else None   # la edad solo se usa para quitar su pendiente de los genes; age_adj_dx la estima dentro de cada diagnóstico
     Ztr, Zte = fold_features(Ctr, Cte, rom, age=age)
     out = {}
     for name in Ztr:

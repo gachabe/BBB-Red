@@ -312,3 +312,17 @@ def test_age_residualize_removes_age_slope_using_training_only():
     assert np.allclose(d @ (Rtr - Rtr.mean(axis=0)), 0, atol=1e-6)                       # sin pendiente residual con la edad en entrenamiento
     Rtr2, Rte2 = age_residualize(Ltr, Lte + 100, a_tr, a_te)                              # cambiar la prueba no cambia el entrenamiento
     assert np.allclose(Rtr, Rtr2) and np.allclose(Rte2 - Rte, 100)
+
+
+def test_age_residualize_within_class_keeps_group_effect():
+    from src.pbcount import age_residualize
+    rng = np.random.default_rng(1)
+    n = 80
+    z = np.r_[np.zeros(40), np.ones(40)]
+    a = np.r_[rng.uniform(20, 60, 40), rng.uniform(40, 80, 40)]
+    L = (0.1 * a + 5 * z)[:, None] + rng.normal(size=(n, 3)) * 0.01          # edad (0,1/año) y diagnóstico (5) a la vez
+    Rtr, _ = age_residualize(L[:60], L[60:], a[:60], a[60:], z=z[:60])
+    diff = Rtr[z[:60] == 1].mean() - Rtr[z[:60] == 0].mean()
+    assert abs(diff - 5) < 0.2                                                    # con z se conserva el efecto del diagnóstico
+    R0, _ = age_residualize(L[:60], L[60:], a[:60], a[60:])
+    assert abs(R0[z[:60] == 1].mean() - R0[z[:60] == 0].mean()) < abs(diff)       # sin z se pierde parte
