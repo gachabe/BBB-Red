@@ -14,6 +14,8 @@ Etapas (en este orden, de más barata a más cara):
   state       Paquetes específicos de cada estado endotelial (ECclusters), solo dentro de Wälchli.
   reverse     Transferencia inversa (entrenar con Xie, predecir Wälchli) y señal dentro de Xie.
   training    Remuestreo del entrenamiento (100 subconjuntos de 10 pacientes de Wälchli) y quitar un paciente de entrenamiento cada vez.
+  small_packets  Xie con un solo paquete de 10, 25 o 50 células por muestra (30 sorteos): ¿valdrían conjuntos externos con ~50 células por paciente?
+  age_adjust  Modelo con la pendiente con la edad quitada de los genes (interno y Xie con sus edades individuales).
   followups   Pruebas condicionadas a lo anterior (paquetes mayores si una variante rompe el resultado).
   summary     Tablas, figuras y veredicto.
 """
@@ -126,7 +128,7 @@ def build(S, spec: dict, seed: int, need_ext: bool = True):
     W = _dense(Xw)
     A = mx = None
     if need_ext and kw_x is not None:
-        Xx, mx, infx = make_packets(Cx, ox, size, R, seed, "sample", COLS_X, None, spec.get("min_whole", 100), **kw_x)
+        Xx, mx, infx = make_packets(Cx, ox, spec.get("size_x", size), spec.get("R_x", R), seed, "sample", COLS_X, None, spec.get("min_whole", 100), **kw_x)   # size_x/R_x: paquetes de Xie distintos a los de entrenamiento
         Xa, present = align_genes(Xx, gx, gw)
         A = _dense(Xa)
         out.update(mx=mx, infx=infx)
@@ -151,15 +153,22 @@ def run_variant(S, rom, spec: dict, seed: int) -> dict:
     model = spec.get("model", "lr")
     rom = {**rom, **({"hvg": spec["hvg"]} if spec.get("hvg") else {}), **spec.get("rom", {})}
     mw, y, W, A = b["mw"], b["y"], b["W"], b["A"]
-    internal = lopo(W, mw, y, rom, model=model)
-    pat = to_patient(internal, keys=("group", "representation"))
+    adj = bool(spec.get("age_adjust"))                       # quita la pendiente con la edad de los genes (ajustada solo con entrenamiento)
+    ex_w = pd.to_numeric(mw["age"], errors="coerce").to_numpy(dtype=float)[:, None] if adj else None
     rows = []
-    for rep, g in pat.groupby("representation"):
-        rows.append(dict(analysis="internal", representation=rep, **patient_metrics(g["y"], g["p_mean"])))
+    if not spec.get("skip_internal"):
+        internal = lopo(W, mw, y, rom, mode="age_adj" if adj else "expr", extra=ex_w, model=model)
+        pat = to_patient(internal, keys=("group", "representation"))
+        for rep, g in pat.groupby("representation"):
+            rows.append(dict(analysis="internal", representation=rep, **patient_metrics(g["y"], g["p_mean"])))
     core_pat = pd.DataFrame()
     if A is not None:
         mx = b["mx"]
-        pr = predict_block(W, y, mw["patient"].to_numpy(), A, rom, model=model)
+        ex_x = None
+        if adj:
+            amap = pd.read_csv(AGES_CSV).set_index("patient")["age"]
+            ex_x = mx["patient"].map(amap).to_numpy(dtype=float)[:, None]
+        pr = predict_block(W, y, mw["patient"].to_numpy(), A, rom, mode="age_adj" if adj else "expr", Etr=ex_w, Ete=ex_x, model=model)
         ext = pd.concat([pd.DataFrame(dict(packet=np.arange(len(mx)), patient=mx["patient"], sample=mx["sample"], site=mx["site"],
                                            y=(mx["diagnosis"] == "GBM").astype(int), representation=n, p=p)) for n, p in pr.items()], ignore_index=True)
         ext["seed"], ext["size"] = seed, spec["size"]
@@ -550,6 +559,52 @@ def stage_variants(S, rom, out: Path, seeds, force=False):
         pd.concat(all_m, ignore_index=True).to_csv(out / "variants_all_metrics.csv", index=False)
 
 
+SMALL_SIZES = (10, 25, 50)
+SMALL_DRAWS = 30
+
+
+def _frac_perfect(m: pd.DataFrame, analysis: str, rep: str) -> float:
+    d = m[(m["analysis"] == analysis) & (m["representation"] == rep)]
+    return float((d["macro_f1"] >= 0.999).mean()) if len(d) else np.nan
+
+
+def stage_small_packets(S, rom, out: Path, draws=SMALL_DRAWS, force=False):
+    """Validación externa con pocas células por paciente (p. ej. conjuntos sin enriquecer, ~50 células endoteliales por paciente).
+    El modelo se entrena como siempre (paquetes de 100 células de Wälchli) y se evalúa en Xie con UN solo paquete por muestra de
+    `size_x` células; se repite con `draws` sorteos distintos para ver cuánto depende del azar."""
+    rows = []
+    for sx in SMALL_SIZES:
+        m = run_named(S, rom, out, f"small_x{sx}_R1", dict(BASE, size_x=sx, R_x=1, skip_internal=True), list(range(draws)), force)
+        for rep in REPS_MAIN + ["All genes"]:
+            d = m[(m["analysis"] == "xie_core") & (m["representation"] == rep)]
+            if len(d):
+                rows.append(dict(celulas_por_paquete=sx, representacion=rep, sorteos=len(d), macro_f1_medio=d["macro_f1"].mean(), macro_f1_minimo=d["macro_f1"].min(),
+                                 fraccion_sorteos_perfectos=_frac_perfect(m, "xie_core", rep), auroc_medio=d["auroc"].mean(), auroc_minimo=d["auroc"].min()))
+    t = pd.DataFrame(rows)
+    t.to_csv(out / "small_packets_core.csv", index=False)
+    return t
+
+
+def stage_age_adjust(S, rom, out: Path, seeds, force=False):
+    """Modelo con la pendiente lineal con la edad quitada de cada gen (ajustada solo con los pacientes de entrenamiento). Interno (14 pacientes,
+    la edad de cada paciente) y externo en Xie con sus edades individuales. Exploratorio: la pendiente se estima en una cohorte donde edad y
+    diagnóstico están confundidos, así que quita también parte del efecto del diagnóstico; un resultado nulo no es concluyente, uno que
+    se mantenga sí indica señal más allá de la tendencia lineal con la edad."""
+    rows = []
+    for name, spec in (("age_adjust", dict(BASE, age_adjust=True)), ("age_adjust_ref", dict(BASE))):
+        m = run_named(S, rom, out, name, spec, seeds, force)
+        for an in ("internal", "xie_core", "xie_all", "xie_periphery"):
+            for rep in REPS_MAIN + ["All genes"]:
+                d = m[(m["analysis"] == an) & (m["representation"] == rep)]
+                if len(d):
+                    rows.append(dict(modelo="sin edad (referencia)" if name.endswith("ref") else "edad quitada de los genes", analisis=an, representacion=rep,
+                                     macro_f1=d["macro_f1"].mean(), auroc=d["auroc"].mean()))
+    t = pd.DataFrame(rows)
+    t.to_csv(out / "age_adjusted_model.csv", index=False)
+    return t
+
+
+
 def stage_state(S, rom, out: Path, seeds, size=50, R=20):
     """Paquetes de un solo estado endotelial (ECclusters), solo dentro de Wälchli."""
     Cw, ow, gw, *_ = S
@@ -748,7 +803,7 @@ def stage_summary(out: Path):
     lines.insert(1, "## Veredicto automático (revisar con las tablas)\n\n" + "\n".join(f"- {v}" for v in verdict) + "\n")
     (out / "phase2_summary.md").write_text("\n".join(lines), encoding="utf-8")
     short = [l for l in lines[:2]]                                           # corto: veredicto + sensibilidad + edad dentro de clase + filtros
-    for fn in ("robustness_table.csv", "xie_age_baseline.csv", "walchli_age_adjusted.csv", "age_vs_prediction_within_class.csv", "xie_filter_totals.csv", "dropstudy_breakpoint.csv"):
+    for fn in ("robustness_table.csv", "xie_age_baseline.csv", "walchli_age_adjusted.csv", "age_vs_prediction_within_class.csv", "xie_filter_totals.csv", "dropstudy_breakpoint.csv", "small_packets_core.csv", "age_adjusted_model.csv"):
         d = _read(out / fn)
         if d is not None:
             if fn == "robustness_table.csv":
@@ -831,16 +886,17 @@ def main(cfg: dict, xie_path, out, res1="results/pseudobulk_counts", seeds=3, n_
     out, res1 = Path(out), Path(res1)
     out.mkdir(parents=True, exist_ok=True)
     rom = dict(components=[2, 5, 10, 20], hvg=cfg["rom"].get("hvg", 2000), scale_clip=cfg["rom"].get("scale_clip", 10.0), min_cpm=1.0, min_frac=0.25)
-    todo = stages or ["holm", "age_prior", "patient_table", "xie_age", "converge", "periphery", "variants", "state", "reverse", "training", "followups", "summary"]
+    todo = stages or ["holm", "age_prior", "patient_table", "xie_age", "converge", "periphery", "variants", "small_packets", "age_adjust", "state", "reverse", "training", "followups", "summary"]
     t0 = time.time()
     S = None
-    if set(todo) & {"age_prior", "patient_table", "xie_age", "variants", "state", "reverse", "training", "followups"}:
+    if set(todo) & {"age_prior", "patient_table", "xie_age", "variants", "small_packets", "age_adjust", "state", "reverse", "training", "followups"}:
         S = M19.load_studies(cfg, xie_path)
     if n_jobs == -1:
         n_jobs = min(os.cpu_count() or 1, 6)                      # cada proceso carga matrices densas de ~100 MB y hace PCA: sin pasarse
     sd = list(range(seeds))
     jobs = dict(holm=lambda: stage_holm(res1, out), age_prior=lambda: stage_age_prior(S, out), patient_table=lambda: stage_patient_table(S, res1, out), xie_age=lambda: stage_xie_age(S, res1, out), converge=lambda: stage_converge(res1, out),
                 periphery=lambda: stage_periphery(res1, out), variants=lambda: stage_variants(S, rom, out, sd, force),
+                small_packets=lambda: stage_small_packets(S, rom, out, draws=SMALL_DRAWS, force=force), age_adjust=lambda: stage_age_adjust(S, rom, out, sd, force),
                 state=lambda: stage_state(S, rom, out, sd[:2]), reverse=lambda: stage_reverse(S, rom, out, sd),
                 training=lambda: stage_training(S, rom, out, n_draws, n_jobs), followups=lambda: stage_followups(S, rom, out, sd),
                 summary=lambda: stage_summary(out))

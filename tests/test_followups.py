@@ -239,14 +239,18 @@ def test_phase2_runs_end_to_end(cfg, tmp_path):
                           "xpure": (dict(size=20, R=3, xie_filter="qc_paper", min_whole=10), "")})
     out = tmp_path / "p2"
     M = p2.M19
-    orig = M.load_studies
+    ax = ad.read_h5ad(xie).obs.groupby("Patient").agg(histology=("glioma_type", "first")).reset_index().rename(columns={"Patient": "patient"})
+    ax["age"] = np.linspace(30, 75, len(ax))
+    ax.to_csv(tmp_path / "ages.csv", index=False)
+    p2.AGES_CSV, p2.SMALL_SIZES, p2.SMALL_DRAWS = str(tmp_path / "ages.csv"), (10,), 2
     p2.main(c, xie, out, res1, seeds=1, n_jobs=1, n_draws=4)
     log = out / "phase2_errors.log"
     if log.exists():                                                    # en datos sintéticos pequeños solo pueden fallar los paquetes mayores de los followups
         heads = [l for l in log.read_text().splitlines() if l.startswith("=== ")]
         assert all(h.startswith("=== followup") for h in heads), log.read_text()
     for f in ("holm_permutation.csv", "age_prior_xie.csv", "replicate_convergence.csv", "variance_components_anova.csv", "periphery_threshold_diagnostic.csv",
-              "variants_all_metrics.csv", "reverse_and_within_xie.csv", "training_subsample_core.csv", "training_drop_one_core.csv", "robustness_table.csv", "phase2_summary.md"):
+              "variants_all_metrics.csv", "reverse_and_within_xie.csv", "training_subsample_core.csv", "training_drop_one_core.csv", "robustness_table.csv", "phase2_summary.md",
+              "small_packets_core.csv", "age_adjusted_model.csv"):
         assert (out / f).exists(), f
 
 
@@ -294,3 +298,17 @@ def test_exact_age_permutation_and_published_filter(tmp_path):
     p2._MASKS.clear()
     k = p2.xie_mask((None, None, None, C, ox, np.array(genes)), "pub")
     assert k[:100].sum() <= 10 and k[100:200].sum() <= 30 and k[200:].sum() <= 100
+
+
+def test_age_residualize_removes_age_slope_using_training_only():
+    from src.pbcount import age_residualize
+    rng = np.random.default_rng(0)
+    a_tr, a_te = rng.uniform(20, 80, 40), rng.uniform(20, 80, 10)
+    g = rng.normal(size=(50, 5))
+    L = rng.normal(size=(50, 5)) * 0.1 + 0.05 * np.r_[a_tr, a_te][:, None] * g[0] + 3
+    Ltr, Lte = L[:40], L[40:]
+    Rtr, Rte = age_residualize(Ltr, Lte, a_tr, a_te)
+    d = a_tr - a_tr.mean()
+    assert np.allclose(d @ (Rtr - Rtr.mean(axis=0)), 0, atol=1e-6)                       # sin pendiente residual con la edad en entrenamiento
+    Rtr2, Rte2 = age_residualize(Ltr, Lte + 100, a_tr, a_te)                              # cambiar la prueba no cambia el entrenamiento
+    assert np.allclose(Rtr, Rtr2) and np.allclose(Rte2 - Rte, 100)
