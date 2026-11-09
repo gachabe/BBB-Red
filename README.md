@@ -4,7 +4,7 @@ Pipeline reproducible: matriz de expresión (células endoteliales x genes) → 
 
 **Pregunta:** ¿cuánta dimensionalidad (genes) puede quitar la PCA sin perder la capacidad de predecir el tipo de glioma? Se compara `PCA-r` (r = 2, 5, 10, 20, 50) frente a `HVG-2000` (genes más variables) y frente a `All genes` (26.666), con regresión logística y random forest. El modelo se entrena con un estudio (Wälchli) y se valida internamente (dejando un paciente fuera) y externamente (Xie).
 
-> **Estado (4-nov-2026):** análisis a nivel de célula, ajuste de hiperparámetros, validación externa, diagnóstico de estudio, análisis `core`, bootstrap, significado de PC1/PC2, exploratorios y **pseudobulks de conteos crudos (fase 1 del protocolo de los coautores, sección 4.11)** terminados. Conclusión: señal modesta dentro de Wälchli; **no se reproduce en Xie completo**; **con pseudobulks y solo muestras `core` (6 pacientes) la separación es perfecta y robusta a las variantes técnicas probadas (fase 2)**, pero con 6 pacientes eso no se puede demostrar estadísticamente, la edad no se puede descartar y la periferia está desplazada; el efecto de estudio sigue siendo total (sección 1).
+> **Estado (9-nov-2026):** análisis a nivel de célula, ajuste de hiperparámetros, validación externa, diagnóstico de estudio, análisis `core`, bootstrap, significado de PC1/PC2, exploratorios y **pseudobulks de conteos crudos (fase 1 del protocolo de los coautores, sección 4.11)** terminados. Conclusión: señal modesta dentro de Wälchli; **no se reproduce en Xie completo**; **con pseudobulks y solo muestras `core` (6 pacientes) la separación es perfecta y robusta a las variantes técnicas probadas (fase 2)**, pero con 6 pacientes eso no se puede demostrar estadísticamente, la edad no se puede descartar y la periferia está desplazada; el efecto de estudio sigue siendo total (sección 1). **Novedad (9-nov): en una cohorte independiente de RNA-seq en masa (Bejarano et al., 18 pacientes con edades solapadas) el modelo congelado de Wälchli ordena perfectamente a los pacientes (AUROC 1,00; p exacto < 0,0001), también dentro de la zona de edades solapadas, donde la edad sola no discrimina (sección 7, punto 5).**
 
 ---
 
@@ -22,6 +22,7 @@ Pipeline reproducible: matriz de expresión (células endoteliales x genes) → 
 | **Pseudobulks de conteos crudos, Xie solo `core` (6 pacientes, 100 células, modelo congelado de Wälchli)** | **Macro-F1 1,000** con PCA-2, 5, 10, 20 y HVG-2000 (todos los genes: 0,966); igual con paquetes de 50 a 500 células y 5 semillas. Los 3 GBM salen con probabilidad ≥ 0,95 y los 3 LGG ≤ 0,001 (PCA-5). **Cautelas:** con 6 pacientes el test exacto no baja de p = 0,05 y el IC exacto del 100 % (6/6) es [0,54-1,00]; con el espécimen completo PCA-2 falla (0,33); mejora a nivel de célula (0,70-0,84) y supera a la validación interna, lo cual conviene mirar con lupa (4.11) |
 | **Fase 2: robustez del `core` (4.12, 4.13)** | **Aguanta:** modelo, forma del paquete, profundidad por adelgazamiento, genes comunes, quedarse con el mismo número de células endoteliales que el artículo (57.318, `core` 1,000), C de la regresión, otra agregación (promedio de log-expresión: 0,95-0,99) y quitar 15.000 genes de estudio no lo rompen (PCA-5 1,000 casi siempre); **lo rompe la regresión de profundidad** en la agregación por promedio y PCA-2 con 500 genes variables; se mantiene con subconjuntos de entrenamiento (84-91 %). La señal aparece también dentro de Xie (AUROC 1,000) y en sentido inverso (AUROC 0,90). **No descartado:** edad (las medias publicadas de Xie quedan a ambos lados de 0,5 en un modelo solo de edad; dentro de cada diagnóstico la predicción correlaciona con la edad, 0,4-0,5 en GBM, sin significación) y diferencias entre cohortes; la periferia es un desplazamiento constante (AUROC 0,8-0,9), no ausencia de señal |
 | **Edad en Xie (4.12, punto 4)** | **Confusión total:** LGG 28-48 años, GBM 56-70 (sin solape). Un modelo solo de edad da macro-F1 1,000 en `core`, periferia y conjunto completo, **igual o mejor que la expresión** (que en periferia y completo falla con umbral 0,5). La expresión no demuestra aportar más que la edad |
+| **Validación con Bejarano (RNA-seq en masa, 18 pacientes, edades solapadas; sección 7, punto 5)** | **Funciona en orden:** AUROC 1,000 con todas las representaciones (p exacto < 0,0001; la edad sola da 0,77), y 1,000 también en la zona de edades solapadas (49-73 años, n = 13; la edad sola: 0,51). Con la pendiente de la edad quitada dentro de cada diagnóstico se mantiene (AUROC 0,93-0,97). **El umbral de 0,5 se desplaza** (macro-F1 0,72-0,83; con probabilidades centradas 0,83-0,94). Cautelas: tecnología distinta (RNA-seq en masa), 18 pacientes, y no se ha podido descartar solapamiento con pacientes de Wälchli |
 | Pseudobulks, Xie completo y periferia | **No funciona con 100 células** (macro-F1 0,30-0,71; periferia 0,30, todo LGG), pero el AUROC de la periferia es 0,8-0,9: ordena bien y falla el umbral. Con paquetes de 250-500 células el Xie completo mejora (hasta 0,91-1,00 con PCA-2), sin contrastar (4.11) |
 | Pseudobulks, validación interna (Wälchli, 14 pacientes) | Macro-F1 0,65-0,81 (célula: 0,65-0,74). Permutación exacta ajustada: PCA-2 p = 0,016, PCA-10 y PCA-20 p = 0,036, PCA-5 p = 0,25. **PCA-2 no es robusto al tamaño del paquete** (AUROC 0,86 con 100 células, 0,71 con 250 y 0,46 con espécimen completo); HVG-2000 sí (macro-F1 0,78-0,85 y AUROC ≈ 0,9 en todos los tamaños). Bootstrap muy ancho (4.11) |
 | Efecto de estudio con pseudobulks | **Total:** AUROC 1,000 con todas las representaciones, incluso PCA-2. Agregar quita ruido de célula, no la diferencia entre estudios |
@@ -532,7 +533,7 @@ Resultados en Xie (`xie_age_baseline.csv`; modelo congelado de Wälchli; el mode
 | Periferia (7) | 1,000; p = 0,029 | **1,000** | 0,917; 0,300 (p = 0,057) |
 | Todo, por paciente (7) | 1,000; p = 0,029 | **1,000** | 1,000; 0,708 (todos los genes y PCA-2: 0,300) |
 
-- **La edad separa los grupos de Xie sin solapamiento y el modelo de edad iguala al de expresión en `core` y lo supera en periferia y en el conjunto completo** (macro-F1 1,000 frente a 0,30-0,71). Con estos datos no se puede decir que la expresión aporte algo que la edad no aporte; en la validación externa completa, la edad predice mejor.
+- **La edad separa los grupos de Xie sin solapamiento y el modelo de edad iguala al de expresión en `core` y lo supera en periferia y en el conjunto completo** (macro-F1 1,000 frente a 0,30-0,71). Con los datos de Xie y de Wälchli no se puede decir que la expresión aporte algo que la edad no aporte; en la validación externa completa, la edad predice mejor. **La cohorte de Bejarano (sección 7, punto 5), con edades solapadas, sí apunta a que la expresión aporta más que la edad.**
 - En `core`, la probabilidad de GBM de la expresión correlaciona con la edad (Spearman 0,89-0,94), pero con el diagnóstico confundido eso no distingue nada.
 - **Wälchli (14 pacientes), AUROC dejando un paciente fuera** (`walchli_age_adjusted.csv`): edad sola 0,833; expresión 0,812-0,917 (todos los genes 0,917, HVG-2000 0,854, PCA-2 0,812, PCA-5 0,812); edad + expresión 0,79-0,83 (sin mejora sobre la edad sola).
 - **Zona de edades solapadas** (48-69 años: 5 GBM y **un solo LGG**): la edad rinde AUROC 0,0 y la expresión 0,4-0,8. Con un único LGG esto es anecdótico.
@@ -553,6 +554,19 @@ Resultados en Xie (`xie_age_baseline.csv`; modelo congelado de Wälchli; el mode
 | Xie `core` | Todos los genes | 0,94 / 1,00 | 1,00 / 1,00 |
 
   **Lectura:** al quitar la tendencia con la edad, **la señal interna casi desaparece** (AUROC 0,54-0,73 frente a 0,84-0,92), coherente con que la expresión no aporta mucho más que la edad en Wälchli (n = 14). En Xie `core` el orden entre pacientes se mantiene (AUROC 0,89-1,00) pero el umbral deja de ser fiable (PCA-5: 0,33). **No es una prueba de que la señal vaya más allá de la edad:** la pendiente se estima donde edad y diagnóstico están confundidos (quita parte del diagnóstico), solo corrige tendencias lineales y con 6 pacientes en Xie el AUROC alto puede conservar restos de edad. En periferia y conjunto completo el modelo corregido empeora (macro-F1 0,30-0,84). Tabla: `age_adjusted_model.csv`.
+- **Pendiente de la edad estimada dentro de cada diagnóstico** (`age_adjust_dx`: gen ~ edad + diagnóstico, solo se quita el término de la edad; así no se arrastra el efecto del diagnóstico). Exploratorio; es una de varias variantes probadas, no estaba fijada de antemano:
+
+| Análisis | Representación | Sin corregir (AUROC) | Edad quitada dentro de cada diagnóstico (macro-F1 / AUROC) |
+|---|---|---|---|
+| Interno (Wälchli, 14) | PCA-2 | 0,87 | 0,71 / 0,71 |
+| Interno | PCA-5 | 0,84 | 0,71 / 0,80 |
+| Interno | HVG-2000 | 0,91 | 0,78 / 0,91 |
+| Interno | Todos los genes | 0,92 | 0,78 / 0,90 |
+| Xie `core` (6) | PCA-2, PCA-5, HVG-2000 y todos los genes | 1,00 | 1,00 / 1,00 (las cuatro) |
+| Xie completo (7) | PCA-2, PCA-5, HVG-2000 | 1,00 | 1,00 / 1,00 (macro-F1 antes 0,30-0,71) |
+| Xie periferia (7) | PCA-5 | 0,83 | 1,00 / 1,00 |
+
+  **Lectura:** estimando la pendiente de la edad dentro de cada diagnóstico, **la señal interna se conserva casi entera** (AUROC 0,71-0,91; con HVG-2000 igual que sin corregir), a diferencia de la versión simple, que la destruye. En Xie se mantiene el `core` y mejoran el conjunto completo y la periferia, probablemente porque quitar la edad reduce parte del desplazamiento entre el núcleo y la periferia. Es un análisis post hoc y no se debe presentar como el modelo final; lo que sí indica es que **la señal de expresión no desaparece al quitar la edad cuando no se quita a la vez el diagnóstico**, y se confirma en Bejarano (punto 5 de la sección 7).
 
 **5. Periferia: es un desplazamiento, no falta de señal**
 - Las probabilidades de la periferia quedan **3,9-9,2 unidades de logit por debajo** de las del núcleo del mismo paciente, en el 100 % de los pacientes (todas más cerca de LGG).
@@ -651,7 +665,7 @@ Hecho: pseudobulks de conteos, fase 1 (4.11), análisis `core` (4.7), periferia 
 3. **Pseudobulks de conteos: fases 1 y 2 hechas (4.11, 4.12).** Hecho: edades individuales de Xie (la edad sola separa a los pacientes y supera a la expresión en periferia y conjunto completo, 4.12 punto 4), variantes `xie_pub` y `norm_deseq_vst`. Pendiente inmediato: comprobar por qué LGG1 es el paciente que más influye (4.12).
    **De la guía:** normalización DESeq/VST ya implementada en Python y ejecutada (`norm_deseq_vst`; inspirada en el paquete de R MLSeq, que normaliza todo el conjunto a la vez, mientras que aquí se ajusta solo con el entrenamiento); aún no implementado: mediana de expresión y muestreos estratificados; componentes de varianza con modelo mixto (4.12 usa ANOVA); anotación endotelial publicada de Xie (no está en los datos descargados; `xie_pub` solo iguala el número de células). `17_pseudobulk` (promedio de log-expresión) ya está ejecutado (4.13); queda abierto reconciliar por qué la regresión de profundidad lo rompe y el adelgazamiento de conteos no.
 4. **Hechos en la v30 (resultados en 4.12):** paquetes pequeños en Xie (`small_packets`: 25-50 células por paciente bastan para conservar el orden, AUROC 1,00) y modelo con la edad quitada de los genes (`age_adjust`: la señal interna casi desaparece, AUROC 0,54-0,73; en Xie `core` se conserva el orden pero no el umbral). Sin resolver la confusión con la edad.
-   **En cola (v32, sin ejecutar):** variante `age_adjust_dx`, que estima la pendiente con la edad *dentro de cada diagnóstico* (gen ~ edad + diagnóstico, quitando solo el término de la edad), para no arrastrar el efecto del diagnóstico que sí quita la versión simple.
+   Hecho también en la v32: `age_adjust_dx` (pendiente de la edad dentro de cada diagnóstico; resultados en 4.12, punto 4).
    **Tablas:** la carpeta `tablas/` del repositorio guarda copias pequeñas de las tablas de resultados (CSV y resúmenes) citadas en este README; los resultados completos (`results/`) no se suben.
 5. **Otro conjunto independiente: Bejarano et al. (2025)** (*Single-cell atlas of endothelial and mural cells across primary and metastatic brain tumors*, Immunity 58, 1015-1032.e6; DOI 10.1016/j.immuni.2025.02.022; fuente: texto de Resultados, tabla "Key resources" y "Data and code availability" del PDF).
 
@@ -673,9 +687,39 @@ Datos: portal del laboratorio (`joycelab.shinyapps.io/braintime`; "RNA-seq and s
 - Hay 8 mujeres y 10 hombres; los sexos están repartidos (IDH mutado 3 M/4 H, GBM 4 M/7 H).
 - Los identificadores de paciente (`GBM116`, ...) no coinciden con los nuestros; no se puede descartar solapamiento con pacientes de Wälchli (mismo hospital y grupo) sin comparar edad, sexo y diagnóstico.
 
-**Datos y código (listos, sin ejecutar):** conteos crudos y metadatos de la parte en masa descargados del portal (pestaña «Bejarano et al., Immunity 2025», Download, «Human data»; 78 muestras CD31+ y PDGFRB+ de 18.874 genes, de las que 18 son CD31+ de glioma, 7 IDH mutado y 11 GBM, que coinciden con la Tabla S1); edades en `configs/bejarano_bulk_ages.csv`. `experiments/23_bejarano_bulk.py` entrena con los 14 pacientes de Wälchli, predice las 18 muestras (expresión, con la pendiente de la edad quitada y con la pendiente dentro de cada diagnóstico) e informa AUROC, p exacto (31.824 asignaciones), macro-F1 con corte 0,5 y centrado, AUROC en la zona de edades solapadas y un control dejando un paciente fuera dentro de la propia cohorte.
+**Resultados** (`experiments/23_bejarano_bulk.py`; tablas en `tablas/bejarano_*.csv`). Conteos crudos y metadatos descargados del portal (pestaña «Bejarano et al., Immunity 2025», Download, «Human data»; 78 muestras CD31+ y PDGFRB+ de 18.874 genes; 18 CD31+ de glioma: 7 IDH mutado y 11 GBM, que coinciden con la Tabla S1; 16.810 de los 26.666 genes de Wälchli presentes). Se entrena con los 14 pacientes de Wälchli (paquetes de 100 células, 3 semillas) y se predice cada muestra en masa sin reajustar nada.
 
-**Por comprobar antes de usarla (pendiente):**
+| Modelo | AUROC | p exacto | macro-F1 (corte 0,5) | sensibilidad / especificidad | macro-F1 centrado | AUROC en la zona de edades solapadas (49-73, n = 13) |
+|---|---|---|---|---|---|---|
+| Expresión, PCA-2 | 1,000 | < 0,0001 | 0,78 | 0,64 / 1,00 | 0,83 | 1,000 |
+| Expresión, PCA-5 | 1,000 | < 0,0001 | 0,78 | 0,64 / 1,00 | 0,83 | 1,000 |
+| Expresión, PCA-10 y PCA-20 | 1,000 | < 0,0001 | 0,83 | 0,73 / 1,00 | 0,89 | 1,000 |
+| Expresión, HVG-2000 | 1,000 | < 0,0001 | 0,83 | 0,73 / 1,00 | 0,89 | 1,000 |
+| Expresión, todos los genes | 1,000 | < 0,0001 | 0,72 | 0,55 / 1,00 | 0,94 | 1,000 |
+| Edad quitada dentro de cada diagnóstico (HVG-2000, PCA-10/20) | 0,974 | < 0,0001 | 0,83 | 0,73 / 1,00 | 0,89 | 0,944 |
+| Edad quitada de los genes (versión simple, HVG-2000) | 0,935 | 0,001 | 0,72 | 0,55 / 1,00 | 0,94 | 0,944 |
+| **Edad sola (referencia)** | **0,773** | **0,030** | -- | -- | -- | **0,514** |
+| Control: dejar un paciente fuera dentro de Bejarano (HVG-2000, PCA-10) | 1,000 | < 0,0001 | 0,83 | -- | -- | -- |
+
+(El p exacto mínimo con 18 muestras es 1/31.824 ≈ 3·10⁻⁵.)
+
+**Lectura:**
+- **Es la prueba más fuerte hasta ahora de que la expresión aporta más que la edad.** En la zona de edades solapadas (4 pacientes con IDH mutado y 9 GBM de 49 a 73 años) la edad no discrimina (AUROC 0,51) y la expresión ordena a los 13 sin error (1,000); la probabilidad de que una ordenación al azar separe así 4 y 9 pacientes es 1/715 ≈ 0,14 %.
+- **El modelo entrenado solo con scRNA-seq de Wälchli ordena perfectamente muestras en masa de otro estudio y otra tecnología**, con 18 pacientes y un p exacto de ~3·10⁻⁵ como mínimo, frente al 0,05 que impone Xie. El control interno de Bejarano (AUROC 0,83-1,00) confirma que la señal existe también dentro de esa cohorte.
+- **El umbral sí se desplaza:** la especificidad es 1,00 y la sensibilidad 0,55-0,73 (el modelo llama IDH mutado a parte de los GBM, la misma tendencia que en la periferia de Xie). Con las probabilidades centradas, a posteriori, el macro-F1 sube a 0,83-0,94. El orden se conserva, la calibración no.
+- **Con la edad quitada** (pendiente dentro de cada diagnóstico) el AUROC sigue en 0,93-0,97 y en la zona de edades solapadas 0,89-0,94: no hay indicios de que la señal sea solo edad.
+
+**Cautelas que siguen vigentes:**
+1. **Posible solapamiento de pacientes con Wälchli** (mismo hospital y grupo): no se puede descartar sin sexo, fecha y otros datos de Wälchli. Con las edades solo hay 8 coincidencias de ±1 año dentro de la misma clase, lo que es lo esperado por azar (media bajo la hipótesis nula 8,3; p = 0,62), así que no hay indicio de solapamiento, pero tampoco se excluye. Hay que preguntar a los autores.
+2. **Tecnología distinta** (RNA-seq en masa de células ordenadas frente a scRNA-seq de 10x) y probablemente efecto de estudio: lo observado es el orden, no un umbral transferible.
+3. **IDH mutado frente a GBM, no exactamente «LGG frente a GBM»:** hay astrocitomas y oligodendrogliomas de grado 2 y un oligodendroglioma de grado 3; el artículo no menciona gliomas de bajo grado con IDH nativo.
+4. **18 pacientes**, de nuevo pocos; una cohorte más reforzaría.
+5. La edad sigue sin estar totalmente equilibrada: por debajo de 49 años solo hay IDH mutado y por encima de 73 solo GBM; la edad sola da 0,77.
+
+**Siguiente paso razonable:** la transferencia inversa (entrenar con Bejarano, predecir los 21 pacientes de Wälchli y Xie) y, si funciona, un modelo con las tres cohortes dejando una fuera cada vez.
+
+
+**Comprobaciones previas (la 1 y la 3 resueltas; la 2 sigue abierta):**
 1. Si los **conteos de las muestras en masa son descargables** del portal (`joycelab.shinyapps.io/braintime`) por muestra.
 2. Si **algún paciente coincide con los de Wälchli** (comparar edad, sexo y diagnóstico con nuestros 14; LGG1 tiene 69 años y no coincide con ninguno de los IDH mutado de esta tabla, 70 y 73).
 3. Diferencias de plataforma: RNA-seq en masa de células ordenadas (STAR + RSEM) frente a scRNA-seq 3' de 10x; el efecto de estudio ya es total entre Wälchli y Xie (4.11). Se puede esperar que se conserve el orden y falle el umbral; se vería con el AUROC.
